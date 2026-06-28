@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { createAnnotation } from './annotationModel.js'
-import { appendTextToDocument, createStarterDocument, normalizeDocumentPayload } from './documentModel.js'
+import { createStarterDocument, insertTextAsVersion, normalizeDocumentPayload } from './documentModel.js'
 import { readJsonFile, writeJsonAtomic } from './jsonFiles.js'
 import { normalizeSelectionState } from './selectionModel.js'
 
@@ -24,16 +24,18 @@ export function createApiHandlers({ stateDir }) {
     return mutateDocument(async () => {
       const updatedAt = new Date().toISOString()
       const current = await readStoredDocument()
+      const shouldMergeAnnotations = shouldMergeCurrentAnnotations(current, incoming)
       const next = {
         ...incoming,
-        annotations: mergeAnnotations(current?.annotations ?? [], incoming.annotations),
+        annotations: shouldMergeAnnotations ? mergeAnnotations(current?.annotations ?? [], incoming.annotations) : incoming.annotations,
         updatedAt
       }
+      const normalizedNext = normalizeDocumentPayload(next)
 
-      await writeJsonAtomic(documentFile, next)
+      await writeJsonAtomic(documentFile, normalizedNext)
       broadcast({ type: 'document-changed', updatedAt })
 
-      return { ok: true, path: documentFile, payload: next }
+      return { ok: true, path: documentFile, payload: normalizedNext }
     })
   }
 
@@ -79,7 +81,7 @@ export function createApiHandlers({ stateDir }) {
     return mutateDocument(async () => {
       const current = await getDocument()
       const now = new Date()
-      const next = appendTextToDocument(current.payload, payload?.text, now)
+      const next = insertTextAsVersion(current.payload, payload?.text, now)
 
       await writeJsonAtomic(documentFile, next)
       broadcast({ type: 'document-changed', updatedAt: next.updatedAt })
@@ -323,6 +325,13 @@ function mergeAnnotations(existingAnnotations, incomingAnnotations) {
     }
     merged.push(annotation)
   }
+}
+
+function shouldMergeCurrentAnnotations(current, incoming) {
+  if (!current) return false
+  const currentVersionId = typeof current.activeVersionId === 'string' ? current.activeVersionId : null
+  const incomingVersionId = typeof incoming.activeVersionId === 'string' ? incoming.activeVersionId : null
+  return !currentVersionId || !incomingVersionId || currentVersionId === incomingVersionId
 }
 
 function isDocumentValidationError(error) {

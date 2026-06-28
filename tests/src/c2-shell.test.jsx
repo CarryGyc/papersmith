@@ -56,6 +56,34 @@ describe('C2 shell components', () => {
     expect(handleCopyFeedback).toHaveBeenCalledTimes(1)
   })
 
+  it('renders draft version buttons between Local Save and Copy feedback', () => {
+    const handleVersionSelect = vi.fn()
+    const { container } = render(
+      <CommandStrip
+        syncState="synced"
+        onCopyFeedback={() => {}}
+        versions={[
+          { id: 'draft-a', label: 'Draft A' },
+          { id: 'draft-b', label: 'Draft B' }
+        ]}
+        activeVersionId="draft-b"
+        onSelectVersion={handleVersionSelect}
+      />
+    )
+
+    const commandPills = container.querySelector('.command-pills')
+    expect(Array.from(commandPills.children).map((child) => child.textContent)).toEqual([
+      'Synced',
+      'Local Save',
+      'Draft ADraft B',
+      'Copy feedback'
+    ])
+    expect(screen.getByRole('button', { name: 'Draft B' })).toHaveAttribute('aria-pressed', 'true')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Draft A' }))
+    expect(handleVersionSelect).toHaveBeenCalledWith('draft-a')
+  })
+
   it('renders annotation inspector state', () => {
     render(<InspectorPanel annotations={[{ id: 'ann_1', type: 'clarity', comment: 'Define this term.', anchor: { text: 'long-term retention' } }]} />)
     expect(screen.getByText('Define this term.')).toBeInTheDocument()

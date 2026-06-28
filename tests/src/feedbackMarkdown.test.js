@@ -32,7 +32,7 @@ describe('feedback markdown', () => {
     expect(markdown).toContain('Draft Title')
     expect(markdown).toContain('You should revise this sentence.')
     expect(markdown).toContain('1. 标注文本：You')
-    expect(markdown).toContain('Comment：请按以下要求修改该标注文本：需要换成更正式的表达。')
+    expect(markdown).toContain('Comment：请按这个要求改这部分：需要换成更正式的表达。')
     expect(markdown).not.toContain('Anchor:')
     expect(markdown).not.toContain('from')
   })

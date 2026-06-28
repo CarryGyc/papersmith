@@ -22,7 +22,8 @@ describe('PaperSmith API handlers', () => {
     const result = await handlers.getDocument()
 
     expect(result.payload.document.type).toBe('doc')
-    expect(result.payload.metadata.title).toBe('Untitled Paper')
+    expect(result.payload.metadata.title).toBe('Welcome to PaperSmith')
+    expect(result.payload.activeVersionId).toBe('welcome')
   })
 
   it('saves and reloads document state', async () => {
@@ -38,6 +39,53 @@ describe('PaperSmith API handlers', () => {
     const result = await handlers.getDocument()
 
     expect(result.payload.metadata.title).toBe('Saved Draft')
+  })
+
+  it('keeps annotations scoped to their active draft version when switching versions', async () => {
+    const handlers = createApiHandlers({ stateDir: tempDir })
+    const firstDraft = {
+      id: 'draft-a',
+      label: 'Draft A',
+      source: 'codex',
+      document: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Draft A text' }] }] },
+      annotations: [{ id: 'ann_a', comment: 'Comment A', anchor: { text: 'Draft A' } }],
+      overallComment: 'Overall A'
+    }
+    const secondDraft = {
+      id: 'draft-b',
+      label: 'Draft B',
+      source: 'codex',
+      document: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Draft B text' }] }] },
+      annotations: [],
+      overallComment: ''
+    }
+
+    await handlers.putDocument({
+      version: 1,
+      metadata: { title: 'Drafts' },
+      document: firstDraft.document,
+      annotations: firstDraft.annotations,
+      overallComment: firstDraft.overallComment,
+      activeVersionId: firstDraft.id,
+      versions: [firstDraft, secondDraft]
+    })
+
+    await handlers.putDocument({
+      version: 1,
+      metadata: { title: 'Drafts' },
+      document: secondDraft.document,
+      annotations: secondDraft.annotations,
+      overallComment: secondDraft.overallComment,
+      activeVersionId: secondDraft.id,
+      versions: [firstDraft, secondDraft]
+    })
+
+    const result = await handlers.getDocument()
+
+    expect(result.payload.activeVersionId).toBe('draft-b')
+    expect(result.payload.annotations).toEqual([])
+    expect(result.payload.overallComment).toBe('')
+    expect(result.payload.versions.find((version) => version.id === 'draft-a').annotations).toEqual(firstDraft.annotations)
   })
 
   it('preserves existing annotations when a stale document save omits them', async () => {
@@ -156,7 +204,7 @@ describe('PaperSmith API middleware', () => {
 
     expect(res.statusCode).toBe(200)
     expect(res.getHeader('content-type')).toContain('application/json')
-    expect(res.json().payload.metadata.title).toBe('Untitled Paper')
+    expect(res.json().payload.metadata.title).toBe('Welcome to PaperSmith')
   })
 
   it('returns JSON 404 for unknown API routes', async () => {

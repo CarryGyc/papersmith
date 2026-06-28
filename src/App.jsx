@@ -18,7 +18,6 @@ export default function App() {
   const [latestSelection, setLatestSelection] = useState(null)
   const [isAnnotationSubmitting, setIsAnnotationSubmittingState] = useState(false)
   const [selectedAnnotation, setSelectedAnnotation] = useState(null)
-  const [overallComment, setOverallComment] = useState('')
   const [copyFeedbackState, setCopyFeedbackState] = useState('idle')
   const [syncState, setSyncState] = useState('syncing')
   const activeRef = useRef(true)
@@ -134,9 +133,10 @@ export default function App() {
   }
 
   function queueDocumentSave(nextPayload) {
+    const payloadToSave = syncActiveVersionInPayload(nextPayload)
     const editSeq = localEditSeqRef.current + 1
     localEditSeqRef.current = editSeq
-    pendingSaveRef.current = { payload: nextPayload, editSeq, updateState: true, ready: false }
+    pendingSaveRef.current = { payload: payloadToSave, editSeq, updateState: true, ready: false }
     setSyncState('syncing')
     if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current)
     saveTimerRef.current = window.setTimeout(() => {
@@ -172,7 +172,7 @@ export default function App() {
   }
 
   async function handleCopyFeedback() {
-    const markdown = buildFeedbackMarkdown(documentState, overallComment)
+    const markdown = buildFeedbackMarkdown(documentState, activeOverallComment(documentState))
 
     try {
       downloadMarkdown(markdown)
@@ -184,9 +184,27 @@ export default function App() {
   }
 
   function handleOverallCommentChange(value) {
-    setOverallComment(value)
+    const nextPayload = setOverallCommentInPayload(documentState, value)
+    if (nextPayload) {
+      setSaveError(null)
+      setDocumentState(nextPayload)
+      queueDocumentSave(nextPayload)
+    }
     clearCopyFeedbackTimer()
     setCopyFeedbackState('idle')
+  }
+
+  function handleVersionSelect(versionId) {
+    const nextPayload = selectVersionInPayload(documentState, versionId)
+    if (!nextPayload || nextPayload.activeVersionId === documentState?.activeVersionId) return
+
+    setSaveError(null)
+    setAnnotationError(null)
+    setSelectedAnnotation(null)
+    setShowComposer(false)
+    updateLatestSelection(null)
+    setDocumentState(nextPayload)
+    queueDocumentSave(nextPayload)
   }
 
   function scheduleCopyFeedbackReset() {
@@ -265,7 +283,14 @@ export default function App() {
       <div className="brand-zone">
         <BrandWordmark />
       </div>
-      <CommandStrip syncState={syncState} onCopyFeedback={handleCopyFeedback} copyFeedbackState={copyFeedbackState} />
+      <CommandStrip
+        syncState={syncState}
+        onCopyFeedback={handleCopyFeedback}
+        copyFeedbackState={copyFeedbackState}
+        versions={documentState?.versions ?? []}
+        activeVersionId={documentState?.activeVersionId}
+        onSelectVersion={handleVersionSelect}
+      />
       <ToolRail activeTool={activeTool} onSelectTool={handleSelectTool} />
       <section className="workspace-center" aria-label="Document">
         {saveError ? (
@@ -287,8 +312,9 @@ export default function App() {
             documentPayload={documentState}
             onChange={(nextPayload) => {
               setSaveError(null)
-              setDocumentState(nextPayload)
-              queueDocumentSave(nextPayload)
+              const payloadWithVersion = syncActiveVersionInPayload(nextPayload)
+              setDocumentState(payloadWithVersion)
+              queueDocumentSave(payloadWithVersion)
             }}
             onSelectionChange={handleSelectionChange}
           />
@@ -312,7 +338,7 @@ export default function App() {
       <InspectorPanel
         annotations={documentState?.annotations ?? []}
         selectedAnnotation={selectedAnnotation}
-        overallComment={overallComment}
+        overallComment={activeOverallComment(documentState)}
         onOverallCommentChange={handleOverallCommentChange}
       />
     </main>
@@ -367,6 +393,13 @@ function selectionStateKey(selection) {
 
 function mergeDocumentPayloadAnnotations(nextPayload, currentPayload) {
   if (!nextPayload || typeof nextPayload !== 'object') return nextPayload
+  if (
+    nextPayload.activeVersionId &&
+    currentPayload?.activeVersionId &&
+    nextPayload.activeVersionId !== currentPayload.activeVersionId
+  ) {
+    return nextPayload
+  }
 
   const currentAnnotations = Array.isArray(currentPayload?.annotations) ? currentPayload.annotations : []
   if (currentAnnotations.length === 0) return nextPayload
@@ -383,13 +416,69 @@ function mergeDocumentPayloadAnnotations(nextPayload, currentPayload) {
     }
   }
 
-  return {
+  return syncActiveVersionInPayload({
     ...nextPayload,
     annotations: mergedAnnotations
-  }
+  })
 }
 
 function annotationKey(annotation) {
   if (annotation?.id !== undefined && annotation?.id !== null) return `id:${annotation.id}`
   return `value:${JSON.stringify(annotation ?? null)}`
+}
+
+function selectVersionInPayload(payload, versionId) {
+  if (!payload || typeof payload !== 'object') return null
+  const versions = Array.isArray(payload.versions) ? payload.versions : []
+  const selectedVersion = versions.find((version) => version.id === versionId)
+  if (!selectedVersion) return null
+
+  return {
+    ...payload,
+    document: selectedVersion.document,
+    annotations: Array.isArray(selectedVersion.annotations) ? selectedVersion.annotations : [],
+    overallComment: typeof selectedVersion.overallComment === 'string' ? selectedVersion.overallComment : '',
+    activeVersionId: selectedVersion.id
+  }
+}
+
+function syncActiveVersionInPayload(payload) {
+  if (!payload || typeof payload !== 'object') return payload
+  const versions = Array.isArray(payload.versions) ? payload.versions : []
+  if (!payload.activeVersionId || versions.length === 0) return payload
+
+  return {
+    ...payload,
+    versions: versions.map((version) => {
+      if (version.id !== payload.activeVersionId) return version
+      return {
+        ...version,
+        document: payload.document,
+        annotations: Array.isArray(payload.annotations) ? payload.annotations : [],
+        overallComment: activeOverallComment(payload)
+      }
+    })
+  }
+}
+
+function setOverallCommentInPayload(payload, overallComment) {
+  if (!payload || typeof payload !== 'object') return null
+  const versions = Array.isArray(payload.versions) ? payload.versions : []
+  const normalizedOverallComment = typeof overallComment === 'string' ? overallComment : ''
+
+  return {
+    ...payload,
+    overallComment: normalizedOverallComment,
+    versions: versions.map((version) => {
+      if (version.id !== payload.activeVersionId) return version
+      return {
+        ...version,
+        overallComment: normalizedOverallComment
+      }
+    })
+  }
+}
+
+function activeOverallComment(payload) {
+  return typeof payload?.overallComment === 'string' ? payload.overallComment : ''
 }

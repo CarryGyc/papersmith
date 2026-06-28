@@ -7,13 +7,13 @@ const DEFAULT_PAPERSMITH_URL = 'http://127.0.0.1:43227'
 const tools = [
   {
     name: 'insert_papersmith_text',
-    description: 'Append drafted text as a paragraph in the local PaperSmith editor.',
+    description: 'Sync drafted text into the local PaperSmith editor as a new Codex draft version.',
     inputSchema: {
       type: 'object',
       properties: {
         text: {
           type: 'string',
-          description: 'Text to append to the current PaperSmith document.'
+          description: 'Text to sync into PaperSmith as a new visible draft version.'
         }
       },
       required: ['text'],
@@ -194,7 +194,7 @@ function toolErrorResult({ message, status, url, toolName }) {
 
 function successMessage(toolName, structuredContent) {
   if (toolName === 'insert_papersmith_text') {
-    return 'Inserted text into PaperSmith.'
+    return 'Synced text into PaperSmith as a new draft version.'
   }
 
   const selectionText = structuredContent?.selection?.text

@@ -29,7 +29,7 @@ description: 根据 PaperSmith 导出的 feedback markdown 修改论文文本。
 ## 输出方式
 
 - 默认先在当前 Codex 聊天中给出完整修订稿。
-- 如果用户要求同步到 PaperSmith，再使用 `papersmith-insert-text` 将修订稿追加写入编辑器。
+- 如果用户要求同步到 PaperSmith，再使用 `papersmith-insert-text` 将修订稿同步为新的 Codex draft version。
 - 当前 MCP 不支持直接覆盖原文；不要声称已经替换 PaperSmith 当前文档。
 
 ## 推荐输出结构

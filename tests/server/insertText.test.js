@@ -19,26 +19,36 @@ afterEach(async () => {
   await rm(tempDir, { recursive: true, force: true })
 })
 
-describe('appendTextToDocument', () => {
-  it('appends trimmed text as a ProseMirror paragraph and preserves document state', () => {
+describe('insertTextAsVersion', () => {
+  it('creates trimmed text as a new active Codex draft and preserves previous version state', () => {
     const now = new Date('2026-06-28T10:30:00.000Z')
     const payload = documentModel.createStarterDocument(new Date('2026-06-28T00:00:00.000Z'))
     payload.metadata.journal = 'Journal of PaperSmith'
     payload.annotations = [{ id: 'note-1', comment: 'Keep this annotation.' }]
-    const originalContent = [...payload.document.content]
 
-    const next = documentModel.appendTextToDocument(payload, '  Codex drafted paragraph.  ', now)
+    const next = documentModel.insertTextAsVersion(payload, '  Codex drafted paragraph.  ', now)
 
     expect(next.metadata).toEqual({
-      title: 'Untitled Paper',
+      title: 'Codex 1',
       author: 'PaperSmith',
       style: 'APA 7th',
       journal: 'Journal of PaperSmith'
     })
-    expect(next.annotations).toEqual([{ id: 'note-1', comment: 'Keep this annotation.' }])
+    expect(next.activeVersionId).toBe('codex-1782642600000-1')
+    expect(next.annotations).toEqual([])
     expect(next.updatedAt).toBe('2026-06-28T10:30:00.000Z')
+    expect(next.versions).toHaveLength(2)
+    expect(next.versions[0]).toMatchObject({
+      id: 'welcome',
+      annotations: [{ id: 'note-1', comment: 'Keep this annotation.' }]
+    })
+    expect(next.versions[1]).toMatchObject({
+      id: 'codex-1782642600000-1',
+      label: 'Codex 1',
+      source: 'codex',
+      annotations: []
+    })
     expect(next.document.content).toEqual([
-      ...originalContent,
       {
         type: 'paragraph',
         content: [{ type: 'text', text: 'Codex drafted paragraph.' }]
@@ -49,12 +59,12 @@ describe('appendTextToDocument', () => {
   it('rejects blank inserted text', () => {
     const payload = documentModel.createStarterDocument()
 
-    expect(() => documentModel.appendTextToDocument(payload, ' \n\t ')).toThrow('Text is required.')
+    expect(() => documentModel.insertTextAsVersion(payload, ' \n\t ')).toThrow('Text is required.')
   })
 })
 
 describe('insert text API handlers', () => {
-  it('appends text, persists the document, and broadcasts a document change', async () => {
+  it('syncs text as a new draft version, persists it, and broadcasts a document change', async () => {
     const handlers = createApiHandlers({ stateDir: tempDir })
     const chunks = []
     handlers.addEventClient({ write: (chunk) => chunks.push(chunk) })
@@ -63,26 +73,29 @@ describe('insert text API handlers', () => {
     const reloaded = await handlers.getDocument()
 
     expect(result.ok).toBe(true)
-    expect(result.payload.document.content.at(-1)).toEqual({
+    expect(result.payload.activeVersionId).toBe(result.payload.versions.at(-1).id)
+    expect(result.payload.versions.map((version) => version.label)).toEqual(['Welcome', 'Codex 1'])
+    expect(result.payload.document.content[0]).toEqual({
       type: 'paragraph',
       content: [{ type: 'text', text: 'Codex drafted paragraph.' }]
     })
-    expect(reloaded.payload.document.content.at(-1)).toEqual(result.payload.document.content.at(-1))
+    expect(reloaded.payload.activeVersionId).toBe(result.payload.activeVersionId)
+    expect(reloaded.payload.document.content[0]).toEqual(result.payload.document.content[0])
     expect(chunks.join('')).toContain('event: document-changed\n')
   })
 
-  it('serializes concurrent inserts so every paragraph is preserved', async () => {
+  it('serializes concurrent inserts so every Codex draft version is preserved', async () => {
     const handlers = createApiHandlers({ stateDir: tempDir })
     const texts = Array.from({ length: 12 }, (_, index) => `Concurrent paragraph ${index + 1}.`)
 
     await Promise.all(texts.map((text) => handlers.insertText({ text })))
     const result = await handlers.getDocument()
-    const paragraphTexts = result.payload.document.content
-      .filter((node) => node.type === 'paragraph')
-      .map((node) => node.content?.[0]?.text)
+    const versionTexts = result.payload.versions
+      .filter((version) => version.source === 'codex')
+      .map((version) => version.document.content[0]?.content?.[0]?.text)
 
-    expect(paragraphTexts).toEqual(expect.arrayContaining(texts))
-    expect(new Set(paragraphTexts).size).toBe(paragraphTexts.length)
+    expect(versionTexts).toEqual(expect.arrayContaining(texts))
+    expect(new Set(versionTexts).size).toBe(versionTexts.length)
   })
 
   it('continues processing document mutations after a rejected insert', async () => {
@@ -91,7 +104,7 @@ describe('insert text API handlers', () => {
     await expect(handlers.insertText({ text: '   ' })).rejects.toThrow('Text is required.')
     const result = await handlers.insertText({ text: 'Recovered after rejection.' })
 
-    expect(result.payload.document.content.at(-1)).toEqual({
+    expect(result.payload.document.content[0]).toEqual({
       type: 'paragraph',
       content: [{ type: 'text', text: 'Recovered after rejection.' }]
     })
@@ -110,7 +123,8 @@ describe('insert text HTTP route', () => {
 
     expect(res.statusCode).toBe(200)
     expect(res.json().ok).toBe(true)
-    expect(res.json().payload.document.content.at(-1)).toEqual({
+    expect(res.json().payload.versions.map((version) => version.label)).toEqual(['Welcome', 'Codex 1'])
+    expect(res.json().payload.document.content[0]).toEqual({
       type: 'paragraph',
       content: [{ type: 'text', text: 'Codex drafted paragraph.' }]
     })
@@ -199,7 +213,7 @@ describe('PaperSmith MCP stdio server', () => {
         'get_papersmith_selection'
       ])
       expect(insert.result.isError).toBe(false)
-      expect(insert.result.content[0].text).toContain('Inserted text into PaperSmith.')
+      expect(insert.result.content[0].text).toContain('Synced text into PaperSmith as a new draft version.')
       expect(readJsonToolContent(insert.result)).toEqual({ ok: true, payload: { updatedAt: 'fake-now' } })
       expect(insert.result.structuredContent).toEqual({ ok: true, payload: { updatedAt: 'fake-now' } })
       expect(selection.result.isError).toBe(false)

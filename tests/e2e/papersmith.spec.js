@@ -3,8 +3,8 @@ import { readFile } from 'node:fs/promises'
 
 const APP_URL = process.env.PAPERSMITH_E2E_URL ?? 'http://127.0.0.1:43227'
 
-test('PaperSmith loads editor and accepts inserted text', async ({ page }) => {
-  const insertedText = `Codex inserted verification paragraph ${Date.now()}.`
+test('PaperSmith loads editor and accepts inserted text as a draft version', async ({ page }) => {
+  const insertedText = `Codex draft version verification ${Date.now()}.`
 
   await page.goto(APP_URL)
 
@@ -19,6 +19,7 @@ test('PaperSmith loads editor and accepts inserted text', async ({ page }) => {
 
   await page.reload()
   await expect(page.getByText(insertedText)).toBeVisible()
+  await expect(page.locator('.version-switcher')).toBeVisible()
 })
 
 test('PaperSmith keeps multiple annotation comments visible in the inspector', async ({ page }) => {
@@ -104,5 +105,5 @@ test('PaperSmith downloads revision feedback markdown for Codex', async ({ page 
   expect(fileText).toContain('Overall Comment 只适用于未被 Local Comments 覆盖的其他内容。')
   expect(fileText).toContain(overallComment)
   expect(fileText).toContain('标注文本：You')
-  expect(fileText).toContain(`Comment：请按以下要求修改该标注文本：${localComment}`)
+  expect(fileText).toContain(`Comment：请按这个要求改这部分：${localComment}`)
 })

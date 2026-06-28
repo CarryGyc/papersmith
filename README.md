@@ -90,7 +90,7 @@ PaperSmith bundles:
 
 Current MCP tools:
 
-- `insert_papersmith_text`: append Codex-generated text to the editor;
+- `insert_papersmith_text`: sync Codex-generated text into the editor as a new draft version;
 - `get_papersmith_selection`: read the current PaperSmith selection.
 
 ## Distribution Notes

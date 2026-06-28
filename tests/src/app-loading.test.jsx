@@ -140,6 +140,72 @@ describe('App document loading', () => {
     expect(await screen.findByText('Codex synced copy')).toBeInTheDocument()
   })
 
+  it('switches draft versions with version-scoped annotations and overall comments', async () => {
+    const documentSaves = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url, options) => {
+        if (url === '/api/document' && options?.method === 'PUT') {
+          const payload = JSON.parse(options.body)
+          documentSaves.push(payload)
+          return jsonResponse({ payload })
+        }
+        return jsonResponse({ payload: versionedDocumentPayload() })
+      })
+    )
+
+    render(<App />)
+    expect(await screen.findByText('Draft A text')).toBeInTheDocument()
+    expect(screen.getByText('Comment for A')).toBeInTheDocument()
+    expect(screen.getByLabelText('Overall comment')).toHaveValue('Overall A')
+
+    vi.useFakeTimers()
+    fireEvent.click(screen.getByRole('button', { name: 'Draft B' }))
+
+    expect(screen.getByText('Draft B text')).toBeInTheDocument()
+    expect(screen.getByText('Comment for B')).toBeInTheDocument()
+    expect(screen.queryByText('Comment for A')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Overall comment')).toHaveValue('Overall B')
+
+    fireEvent.change(screen.getByLabelText('Overall comment'), { target: { value: 'Overall B revised' } })
+    await act(async () => {
+      vi.advanceTimersByTime(400)
+      await Promise.resolve()
+    })
+
+    expect(documentSaves.at(-1)).toMatchObject({
+      activeVersionId: 'draft-b',
+      overallComment: 'Overall B revised'
+    })
+    expect(documentSaves.at(-1).versions.find((version) => version.id === 'draft-b').overallComment).toBe(
+      'Overall B revised'
+    )
+    expect(documentSaves.at(-1).versions.find((version) => version.id === 'draft-a').overallComment).toBe('Overall A')
+  })
+
+  it('downloads feedback for only the currently visible draft version', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ payload: versionedDocumentPayload() })))
+    vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn(async () => {}) } })
+    const createObjectURL = vi.fn(() => 'blob:papersmith-feedback')
+    const revokeObjectURL = vi.fn()
+    vi.stubGlobal('URL', { ...globalThis.URL, createObjectURL, revokeObjectURL })
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+
+    render(<App />)
+    expect(await screen.findByText('Draft A text')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Draft B' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Copy feedback' }))
+
+    const markdown = await readBlobText(createObjectURL.mock.calls[0][0])
+    expect(markdown).toContain('Draft B text')
+    expect(markdown).toContain('Comment for B')
+    expect(markdown).toContain('Overall B')
+    expect(markdown).not.toContain('Draft A text')
+    expect(markdown).not.toContain('Comment for A')
+    expect(markdown).not.toContain('Overall A')
+  })
+
   it('renders document content in a stable workspace center row', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ payload: documentPayload('Initial copy') })))
 
@@ -622,7 +688,7 @@ describe('App document loading', () => {
               {
                 id: 'ann_you',
                 type: 'clarity',
-                comment: '用户写入的comment',
+                comment: 'Use a more formal subject.',
                 anchor: { text: 'You' },
                 status: 'anchored'
               }
@@ -635,8 +701,10 @@ describe('App document loading', () => {
     render(<App />)
     expect(await screen.findByText('You should revise this sentence.')).toBeInTheDocument()
 
-    await user.type(screen.getByLabelText('Overall comment'), '未标注部分改得更像学术论文。')
     vi.useFakeTimers()
+    fireEvent.change(screen.getByLabelText('Overall comment'), {
+      target: { value: 'Make unmarked content more academic.' }
+    })
     const createObjectURL = vi.fn(() => 'blob:papersmith-feedback')
     const revokeObjectURL = vi.fn()
     vi.stubGlobal('URL', { ...globalThis.URL, createObjectURL, revokeObjectURL })
@@ -1116,6 +1184,40 @@ function documentPayload(text, overrides = {}) {
   }
 }
 
+function versionedDocumentPayload() {
+  return {
+    version: 1,
+    metadata: { title: 'Drafts', author: 'PaperSmith', style: 'APA 7th' },
+    document: paragraphDocument('Draft A text'),
+    annotations: [{ id: 'ann_a', comment: 'Comment for A', anchor: { text: 'Draft A' } }],
+    overallComment: 'Overall A',
+    activeVersionId: 'draft-a',
+    versions: [
+      {
+        id: 'draft-a',
+        label: 'Draft A',
+        source: 'codex',
+        createdAt: '2026-06-28T00:00:00.000Z',
+        updatedAt: '2026-06-28T00:00:00.000Z',
+        document: paragraphDocument('Draft A text'),
+        annotations: [{ id: 'ann_a', comment: 'Comment for A', anchor: { text: 'Draft A' } }],
+        overallComment: 'Overall A'
+      },
+      {
+        id: 'draft-b',
+        label: 'Draft B',
+        source: 'codex',
+        createdAt: '2026-06-28T00:01:00.000Z',
+        updatedAt: '2026-06-28T00:01:00.000Z',
+        document: paragraphDocument('Draft B text'),
+        annotations: [{ id: 'ann_b', comment: 'Comment for B', anchor: { text: 'Draft B' } }],
+        overallComment: 'Overall B'
+      }
+    ],
+    updatedAt: '2026-06-28T00:00:00.000Z'
+  }
+}
+
 function paragraphDocument(text) {
   return { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text }] }] }
 }
@@ -1125,6 +1227,15 @@ function extractText(node) {
   if (typeof node.text === 'string') return node.text
   if (!Array.isArray(node.content)) return ''
   return node.content.map(extractText).join('')
+}
+
+function readBlobText(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.addEventListener('load', () => resolve(reader.result))
+    reader.addEventListener('error', () => reject(reader.error))
+    reader.readAsText(blob)
+  })
 }
 
 function jsonResponse(payload) {

@@ -144,12 +144,14 @@ button {
 .command-pills {
   display: flex;
   flex: 0 0 auto;
+  min-width: 0;
   align-items: center;
   gap: 8px;
 }
 
 .sync-pill,
 .version-pill,
+.version-button,
 .copy-feedback-button {
   display: inline-flex;
   height: 28px;
@@ -164,6 +166,33 @@ button {
   line-height: 1;
   letter-spacing: 0;
   white-space: nowrap;
+}
+
+.version-switcher {
+  display: flex;
+  max-width: min(360px, 32vw);
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.version-button {
+  flex: 0 0 auto;
+  color: #c9c0af;
+  cursor: pointer;
+}
+
+.version-button-active {
+  color: #211d18;
+  background: #efe1bd;
+  border-color: rgb(214 173 82 / 58%);
+}
+
+.version-button:focus-visible {
+  outline: 2px solid rgb(214 173 82 / 72%);
+  outline-offset: 2px;
 }
 
 .copy-feedback-button {
@@ -737,8 +766,21 @@ button {
     gap: 0;
   }
 
-  .version-pill {
+  .version-pill,
+  .sync-pill {
     display: none;
+  }
+
+  .version-switcher {
+    max-width: 32vw;
+    gap: 4px;
+  }
+
+  .version-button,
+  .copy-feedback-button {
+    height: 28px;
+    padding: 0 9px;
+    font-size: 11px;
   }
 
   .tool-rail {
