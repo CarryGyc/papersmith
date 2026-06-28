@@ -2,14 +2,16 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { spawnSync } from 'node:child_process'
 
 const PLUGIN_NAME = 'papersmith'
 const MARKETPLACE_ENTRY_PATH = `./plugins/${PLUGIN_NAME}`
 const sourceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
-main()
+if (isMainModule()) {
+  main()
+}
 
 function main() {
   const homeDir = path.resolve(process.env.PAPERSMITH_INSTALL_HOME || os.homedir())
@@ -90,16 +92,46 @@ function assertSafeExistingTarget(target) {
 }
 
 function installDependencies(target) {
-  const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm'
-  const result = spawnSync(npmCommand, ['install', '--include=dev'], {
+  const npmInvocation = resolveNpmInvocation()
+  const result = spawnSync(npmInvocation.command, [...npmInvocation.args, 'install', '--include=dev'], {
     cwd: target,
     stdio: 'inherit',
     shell: false
   })
 
+  if (result.error) {
+    throw new Error(`npm install failed in the installed PaperSmith plugin directory: ${result.error.message}`)
+  }
+
   if (result.status !== 0) {
     throw new Error('npm install failed in the installed PaperSmith plugin directory.')
   }
+}
+
+export function resolveNpmInvocation({
+  env = process.env,
+  execPath = process.execPath,
+  platform = process.platform,
+  fileExists = fs.existsSync
+} = {}) {
+  if (isJavaScriptFile(env.npm_execpath)) {
+    return { command: execPath, args: [env.npm_execpath] }
+  }
+
+  const npmCliPath = path.join(path.dirname(execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js')
+  if (fileExists(npmCliPath)) {
+    return { command: execPath, args: [npmCliPath] }
+  }
+
+  if (platform === 'win32') {
+    return { command: 'cmd.exe', args: ['/d', '/s', '/c', 'npm.cmd'] }
+  }
+
+  return { command: 'npm', args: [] }
+}
+
+function isJavaScriptFile(filePath) {
+  return typeof filePath === 'string' && ['.js', '.cjs', '.mjs'].includes(path.extname(filePath).toLowerCase())
 }
 
 function updateMarketplace(marketplacePath) {
@@ -219,4 +251,8 @@ function titleCase(value) {
     .filter(Boolean)
     .map((part) => part.slice(0, 1).toUpperCase() + part.slice(1))
     .join(' ')
+}
+
+function isMainModule() {
+  return import.meta.url === pathToFileURL(process.argv[1] || '').href
 }
