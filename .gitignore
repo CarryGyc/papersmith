@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.vite/
+papersmith/
+.superpowers/
+coverage/
+test-results/
+playwright-report/
+Codex工作记录.md

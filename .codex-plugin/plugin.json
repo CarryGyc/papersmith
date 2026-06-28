@@ -1,0 +1,24 @@
+{
+  "name": "papersmith",
+  "version": "0.1.0",
+  "description": "PaperSmith connects Codex to a local academic writing editor for drafting, annotation-aware revision, and selection-based academic polishing.",
+  "author": {
+    "name": "PaperSmith"
+  },
+  "keywords": ["papersmith", "writing", "academic-writing", "mcp"],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "PaperSmith",
+    "shortDescription": "把 Codex 连接到本地论文写作编辑器。",
+    "longDescription": "PaperSmith 让 Codex 打开本地论文编辑器、读取当前选区、插入生成文本，并根据中文批注反馈辅助修改论文。",
+    "developerName": "PaperSmith",
+    "category": "Productivity",
+    "capabilities": ["Write", "Interactive"],
+    "defaultPrompt": [
+      "打开 PaperSmith 编辑器。",
+      "把这段文字同步到 PaperSmith。",
+      "根据这个 PaperSmith feedback markdown 修改论文。"
+    ]
+  }
+}
