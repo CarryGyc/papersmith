@@ -1,11 +1,11 @@
-# PaperSmith Installation
+﻿# PaperSmith Installation
 
 ## One-Command Install
 
 After the repository is public on GitHub, run:
 
 ```bash
-npm exec --yes --package=github:YOUR_GITHUB_USER/papersmith -- papersmith-install
+npm exec --yes --package=github:CarryGyc/papersmith -- papersmith-install
 ```
 
 Then restart Codex and start a new thread.
@@ -41,3 +41,4 @@ http://127.0.0.1:43227/
 ## Update
 
 Run the same install command again.
+
