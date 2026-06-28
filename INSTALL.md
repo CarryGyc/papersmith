@@ -34,7 +34,8 @@ To simulate a first-time install without touching your real Codex profile:
 
 ```powershell
 $installHome = 'E:\gyc_re\papersmith_install'
-if (Test-Path -LiteralPath $installHome) { Remove-Item -LiteralPath $installHome -Recurse -Force }
+New-Item -ItemType Directory -Force -Path $installHome | Out-Null
+Get-ChildItem -LiteralPath $installHome -Force | Remove-Item -Recurse -Force
 $env:PAPERSMITH_INSTALL_HOME = $installHome
 npm exec --yes --package=github:CarryGyc/papersmith -- papersmith-install
 Remove-Item Env:PAPERSMITH_INSTALL_HOME
@@ -72,4 +73,5 @@ http://127.0.0.1:43227/
 ## Update
 
 Run the same install command again.
+
 

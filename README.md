@@ -38,7 +38,8 @@ To test PaperSmith as if it were being installed on a fresh machine without touc
 
 ```powershell
 $installHome = 'E:\gyc_re\papersmith_install'
-if (Test-Path -LiteralPath $installHome) { Remove-Item -LiteralPath $installHome -Recurse -Force }
+New-Item -ItemType Directory -Force -Path $installHome | Out-Null
+Get-ChildItem -LiteralPath $installHome -Force | Remove-Item -Recurse -Force
 $env:PAPERSMITH_INSTALL_HOME = $installHome
 npm exec --yes --package=github:CarryGyc/papersmith -- papersmith-install
 Remove-Item Env:PAPERSMITH_INSTALL_HOME
@@ -97,4 +98,5 @@ Current MCP tools:
 The one-command GitHub installer is the practical path for personal or small-team distribution.
 
 Codex also supports marketplace sources such as GitHub repositories via `codex plugin marketplace add owner/repo`, but that expects a marketplace catalog layout. Keep this installer path as the default until PaperSmith is repackaged into a dedicated marketplace repository or submitted through a formal plugin marketplace flow.
+
 
