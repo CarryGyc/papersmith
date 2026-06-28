@@ -1,7 +1,7 @@
 node_modules/
 dist/
 .vite/
-papersmith/
+/papersmith/
 .superpowers/
 coverage/
 test-results/

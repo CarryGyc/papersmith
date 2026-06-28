@@ -12,6 +12,7 @@ description: 将 Codex 生成的文本发送到本地 PaperSmith 编辑器，并
 - 当用户已经处在 PaperSmith 写作流程中，并要求 Codex 写一段正文、改写稿、润色稿或修订稿时，默认在聊天里给出内容后调用 `insert_papersmith_text` 同步到 PaperSmith。
 - 如果用户明确说“不要同步”“只在聊天里给我”，不要调用写入工具。
 - 如果生成内容只是解释、计划、命令说明或调试反馈，不要写入 PaperSmith。
+- 如果回复包含正文和额外说明，只把正文传给 `insert_papersmith_text`；额外说明只能留在聊天里。
 
 ## 工作流程
 

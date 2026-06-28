@@ -88,6 +88,11 @@ PaperSmith bundles:
 - `skills/` with Chinese PaperSmith workflows;
 - the Vite React editor and local API middleware.
 
+PaperSmith currently implements its live writing behavior through skills and MCP tools. The local
+plugin validator still rejects manifest-level `hooks`, so the plugin does not ship a `hooks` field.
+When PaperSmith is open, `papersmith-live-draft-sync` instructs Codex to show the manuscript text
+first in chat, sync only that manuscript text to PaperSmith, and place any extra explanation after it.
+
 Current MCP tools:
 
 - `insert_papersmith_text`: sync Codex-generated text into the editor as a new draft version;
