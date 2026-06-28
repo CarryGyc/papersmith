@@ -4,13 +4,11 @@ PaperSmith is a local Codex plugin for academic writing. It connects Codex to a 
 
 ## Install From GitHub
 
-After this project is pushed to GitHub, other users can install it with one command:
+Install the latest PaperSmith release from GitHub with one command:
 
 ```bash
 npm exec --yes --package=github:CarryGyc/papersmith -- papersmith-install
 ```
-
-Replace `CarryGyc/papersmith` with the real GitHub repository.
 
 The installer will:
 
@@ -20,6 +18,33 @@ The installer will:
 - enable `papersmith@personal` in `~/.codex/config.toml`.
 
 Restart Codex after installation, then start a new thread and ask Codex to open PaperSmith.
+
+### Windows notes
+
+PaperSmith's installer invokes npm through npm's JavaScript CLI when possible. This avoids a Windows issue seen with Node 25 where directly spawning `npm.cmd` can fail with `spawnSync npm.cmd EINVAL`.
+
+If the command fails on Windows, first check:
+
+```powershell
+node -v
+npm -v
+```
+
+Then rerun the install command and share the full error output.
+
+### Clean install simulation
+
+To test PaperSmith as if it were being installed on a fresh machine without touching your real Codex home, use a temporary install home:
+
+```powershell
+$installHome = 'E:\gyc_re\papersmith_install'
+if (Test-Path -LiteralPath $installHome) { Remove-Item -LiteralPath $installHome -Recurse -Force }
+$env:PAPERSMITH_INSTALL_HOME = $installHome
+npm exec --yes --package=github:CarryGyc/papersmith -- papersmith-install
+Remove-Item Env:PAPERSMITH_INSTALL_HOME
+```
+
+That writes the simulated plugin, marketplace, and Codex config under `E:\gyc_re\papersmith_install` instead of the real user profile.
 
 ## Update
 
