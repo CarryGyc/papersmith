@@ -8,7 +8,8 @@ After the repository is public on GitHub, run:
 npm exec --yes --package=github:CarryGyc/papersmith -- papersmith-install
 ```
 
-Then restart Codex and start a new thread.
+Then restart Codex and start a new thread. Existing threads may keep the old skill registry in memory,
+so test plugin updates from a fresh thread.
 
 ## Requirements
 

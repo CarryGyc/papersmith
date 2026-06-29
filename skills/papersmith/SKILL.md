@@ -1,6 +1,6 @@
 ---
 name: papersmith
-description: PaperSmith 中文总入口。用于用户提到 PaperSmith、论文写作插件、右侧编辑器、Codex 输出同步、PaperSmith 已打开后的正文写作请求、选中文本改写、批注反馈、feedback markdown、local comments、overall comment、或需要判断该用哪个 PaperSmith workflow 的场景。
+description: PaperSmith 中文总入口。用于用户提到 PaperSmith、论文写作插件、右侧编辑器、Codex 输出同步、PaperSmith 已打开后的正文写作请求、给我正文、发给我 introduction、输出或返回论文段落、选中文本改写、批注反馈、feedback markdown、local comments、overall comment、或需要判断该用哪个 PaperSmith workflow 的场景。
 ---
 
 # PaperSmith 总入口
@@ -12,7 +12,7 @@ description: PaperSmith 中文总入口。用于用户提到 PaperSmith、论文
 | 用户意图 | 使用的专项 skill |
 | --- | --- |
 | 打开 PaperSmith、恢复编辑器、检查服务是否在线 | `papersmith-open-editor` |
-| PaperSmith 已打开后，用户要求写正文、改正文、润色正文、生成论文段落或修订稿 | `papersmith-live-draft-sync` |
+| PaperSmith 已打开后，用户要求写正文、给我正文、发给我 introduction、输出或返回论文段落、改正文、润色正文、生成论文段落或修订稿 | `papersmith-live-draft-sync` |
 | 把 Codex 生成内容同步为右侧编辑器中的新 draft | `papersmith-insert-text` |
 | 根据 PaperSmith 导出的 `.md` 批注反馈改稿 | `papersmith-revise-from-feedback` |
 | 改写当前 PaperSmith 选中文本 | `papersmith-rewrite-selection` |
@@ -21,7 +21,8 @@ description: PaperSmith 中文总入口。用于用户提到 PaperSmith、论文
 ## 判断规则
 
 - 用户说“打开、启动、连不上、检查 PaperSmith”，优先进入 `papersmith-open-editor`。
-- PaperSmith 已经打开后，用户要求写正文、改正文、润色正文、生成论文段落或修订稿，优先进入 `papersmith-live-draft-sync`。
+- PaperSmith 已经打开后，用户要求写正文、给我正文、发给我 introduction、输出或返回论文段落、改正文、润色正文、生成论文段落或修订稿，优先进入 `papersmith-live-draft-sync`。
+- PaperSmith 写作模式下，“把之前写的 introduction 发给我”“给我上一版正文”“输出这段论文内容”都不是普通聊天输出；只要内容属于论文正文，必须先显示在聊天框，再调用 `insert_papersmith_text` 同步到 PaperSmith。
 - 用户明确说“把这段发到 PaperSmith、插入右侧、同步到编辑器”，且正文内容已经确定时，进入 `papersmith-insert-text`。
 - 用户提供 `PaperSmith Revision Feedback`、`Original Text`、`Local Comments`、`Overall Comment`，优先进入 `papersmith-revise-from-feedback`。
 - 用户说“改我选中的、当前 selection、这句选中文本”，优先进入 `papersmith-rewrite-selection`。
@@ -40,6 +41,7 @@ description: PaperSmith 中文总入口。用于用户提到 PaperSmith、论文
 
 - “打开 PaperSmith。”
 - “把这段发到右侧编辑器。”
+- “把之前写的 introduction 发给我。”
 - “根据这个 feedback md 改稿。”
 - “改写我当前选中的这句话。”
 - “把这段润色成学术论文风格，然后同步到 PaperSmith。”

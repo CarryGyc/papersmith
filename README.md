@@ -17,7 +17,8 @@ The installer will:
 - add or update `~/.agents/plugins/marketplace.json`;
 - enable `papersmith@personal` in `~/.codex/config.toml`.
 
-Restart Codex after installation, then start a new thread and ask Codex to open PaperSmith.
+Restart Codex after installation, then start a new thread and ask Codex to open PaperSmith. Existing
+threads can keep the old skill registry in memory, so use a fresh thread when testing an update.
 
 ### Windows notes
 
@@ -92,6 +93,8 @@ PaperSmith currently implements its live writing behavior through skills and MCP
 plugin validator still rejects manifest-level `hooks`, so the plugin does not ship a `hooks` field.
 When PaperSmith is open, `papersmith-live-draft-sync` instructs Codex to show the manuscript text
 first in chat, sync only that manuscript text to PaperSmith, and place any extra explanation after it.
+In PaperSmith writing mode, requests such as "给我正文", "发给我 introduction", or "输出上一版段落"
+are treated as manuscript-body output and should sync unless the user explicitly asks for chat-only output.
 
 Current MCP tools:
 
