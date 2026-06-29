@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { Readable } from 'node:stream'
@@ -181,6 +181,35 @@ describe('PaperSmith API handlers', () => {
     expect(output).toContain('\n\n')
   })
 
+  it('exports feedback markdown as a local file and copies that file to the clipboard', async () => {
+    const copiedFiles = []
+    const handlers = createApiHandlers({
+      stateDir: tempDir,
+      copyFileToClipboard: async (filePath) => {
+        copiedFiles.push(filePath)
+        return true
+      }
+    })
+    const markdown = '# PaperSmith Revision Feedback\n\n## Current Draft\nFull text.'
+
+    const result = await handlers.exportFeedbackFile({ markdown })
+
+    expect(result).toMatchObject({
+      ok: true,
+      fileName: 'papersmith-feedback.md',
+      copiedToClipboard: true
+    })
+    expect(result.path).toBe(join(tempDir, 'exports', 'papersmith-feedback.md'))
+    expect(await readFile(result.path, 'utf8')).toBe(markdown)
+    expect(copiedFiles).toEqual([result.path])
+  })
+
+  it('rejects empty feedback markdown exports', async () => {
+    const handlers = createApiHandlers({ stateDir: tempDir })
+
+    await expect(handlers.exportFeedbackFile({ markdown: '   ' })).rejects.toThrow('Feedback markdown is required.')
+  })
+
   it('exposes broadcast and writes SSE lines to event clients', () => {
     const handlers = createApiHandlers({ stateDir: tempDir })
     const chunks = []
@@ -276,6 +305,33 @@ describe('PaperSmith API middleware', () => {
     })
 
     expect(res.statusCode).toBe(413)
+  })
+
+  it('returns JSON after exporting a feedback file', async () => {
+    const copiedFiles = []
+    const middleware = createApiMiddleware({
+      stateDir: tempDir,
+      copyFileToClipboard: async (filePath) => {
+        copiedFiles.push(filePath)
+        return true
+      }
+    })
+    const markdown = '# PaperSmith Revision Feedback\n\nComplete draft.'
+
+    const { res } = await callApi(middleware, {
+      method: 'POST',
+      url: '/api/feedback-file',
+      chunks: [jsonChunk({ markdown })]
+    })
+
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toMatchObject({
+      ok: true,
+      fileName: 'papersmith-feedback.md',
+      copiedToClipboard: true
+    })
+    expect(await readFile(res.json().path, 'utf8')).toBe(markdown)
+    expect(copiedFiles).toEqual([res.json().path])
   })
 
   it('starts document event streams with SSE headers and a connected comment', async () => {

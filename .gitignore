@@ -6,4 +6,5 @@ dist/
 coverage/
 test-results/
 playwright-report/
+papersmith-dev-*.log
 Codex工作记录.md

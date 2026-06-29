@@ -95,10 +95,12 @@ When PaperSmith is open, `papersmith-live-draft-sync` instructs Codex to show th
 first in chat, sync only that manuscript text to PaperSmith, and place any extra explanation after it.
 In PaperSmith writing mode, requests such as "给我正文", "发给我 introduction", or "输出上一版段落"
 are treated as manuscript-body output and should sync unless the user explicitly asks for chat-only output.
-`Copy feedback` copies a complete `papersmith-feedback.md` Markdown document to the clipboard, with
-download as a fallback when clipboard access is blocked. The document includes the current draft's
-full text, local comments mapped to their marked text, the overall comment, and an explicit
-instruction for Codex to return the revised full draft rather than a comment-only reply.
+`Copy feedback` writes `papersmith-feedback.md` under the local PaperSmith export folder and copies
+that `.md` file itself to the Windows clipboard, so it can be pasted into Codex as a file attachment.
+If file clipboard access is blocked, PaperSmith falls back to copying the complete Markdown document
+text, then to downloading the file. The document includes the current draft's full text, local
+comments mapped to their marked text, the overall comment, and an explicit instruction for Codex to
+return the revised full draft rather than a comment-only reply.
 
 Current MCP tools:
 

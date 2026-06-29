@@ -1,3 +1,5 @@
+import { spawn } from 'node:child_process'
+import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { createAnnotation } from './annotationModel.js'
 import { createStarterDocument, insertTextAsVersion, normalizeDocumentPayload } from './documentModel.js'
@@ -6,9 +8,12 @@ import { normalizeSelectionState } from './selectionModel.js'
 
 const BODY_LIMIT_BYTES = 5 * 1024 * 1024
 
-export function createApiHandlers({ stateDir }) {
+export function createApiHandlers(options) {
+  const { stateDir } = options
   const documentFile = join(stateDir, 'document.json')
   const selectionFile = join(stateDir, 'selection.json')
+  const exportDir = join(stateDir, 'exports')
+  const copyFileToClipboard = options.copyFileToClipboard ?? copyFileToSystemClipboard
   const eventClients = new Set()
   let documentMutationQueue = Promise.resolve()
 
@@ -90,6 +95,23 @@ export function createApiHandlers({ stateDir }) {
     })
   }
 
+  async function exportFeedbackFile(payload) {
+    const markdown = typeof payload?.markdown === 'string' ? payload.markdown : ''
+    if (!markdown.trim()) {
+      const error = new Error('Feedback markdown is required.')
+      error.statusCode = 400
+      throw error
+    }
+
+    await mkdir(exportDir, { recursive: true })
+    const fileName = 'papersmith-feedback.md'
+    const filePath = join(exportDir, fileName)
+    await writeFile(filePath, markdown, 'utf8')
+    const copiedToClipboard = await copyFileToClipboard(filePath)
+
+    return { ok: true, path: filePath, fileName, copiedToClipboard }
+  }
+
   function addEventClient(res) {
     eventClients.add(res)
     return () => eventClients.delete(res)
@@ -118,12 +140,22 @@ export function createApiHandlers({ stateDir }) {
     return nextMutation
   }
 
-  return { getDocument, putDocument, getSelection, putSelection, postAnnotation, insertText, addEventClient, broadcast }
+  return {
+    getDocument,
+    putDocument,
+    getSelection,
+    putSelection,
+    postAnnotation,
+    insertText,
+    exportFeedbackFile,
+    addEventClient,
+    broadcast
+  }
 }
 
 export function papersmithApiPlugin(options = {}) {
   const stateDir = options.stateDir || process.env.PAPERSMITH_STATE_DIR || join(process.cwd(), 'papersmith')
-  const handlers = createApiHandlers({ stateDir })
+  const handlers = createApiHandlers({ stateDir, copyFileToClipboard: options.copyFileToClipboard })
 
   return {
     name: 'papersmith-api',
@@ -159,6 +191,11 @@ export function papersmithApiPlugin(options = {}) {
 
           if (pathname === '/api/insert-text') {
             await handleInsertText(req, res, handlers)
+            return
+          }
+
+          if (pathname === '/api/feedback-file') {
+            await handleFeedbackFile(req, res, handlers)
             return
           }
 
@@ -257,6 +294,74 @@ async function handleInsertText(req, res, handlers) {
     if (!isInsertTextValidationError(error)) throw error
     sendJson(res, 400, { error: error.message })
   }
+}
+
+async function handleFeedbackFile(req, res, handlers) {
+  if (req.method !== 'POST') {
+    sendMethodNotAllowed(res, ['POST'])
+    return
+  }
+
+  sendJson(res, 200, await handlers.exportFeedbackFile(await readBodyJson(req)))
+}
+
+async function copyFileToSystemClipboard(filePath) {
+  if (process.platform !== 'win32') {
+    const error = new Error('Copying a feedback file to the clipboard is only supported on Windows.')
+    error.statusCode = 501
+    throw error
+  }
+
+  const args = [
+    '-Sta',
+    '-NoProfile',
+    '-NonInteractive',
+    '-Command',
+    `Set-Clipboard -LiteralPath ${quotePowerShellString(filePath)}`
+  ]
+  let lastError
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      await runPowerShell(args)
+      return true
+    } catch (error) {
+      lastError = error
+      await delay(100 * (attempt + 1))
+    }
+  }
+
+  throw lastError
+}
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function quotePowerShellString(value) {
+  return `'${String(value).replaceAll("'", "''")}'`
+}
+
+function runPowerShell(args) {
+  return new Promise((resolve, reject) => {
+    const child = spawn('powershell.exe', args, {
+      windowsHide: true,
+      stdio: ['ignore', 'ignore', 'pipe']
+    })
+    const stderr = []
+
+    child.stderr.on('data', (chunk) => {
+      stderr.push(Buffer.from(chunk))
+    })
+    child.on('error', reject)
+    child.on('close', (code) => {
+      if (code === 0) {
+        resolve()
+        return
+      }
+
+      reject(new Error(`File clipboard copy failed: ${Buffer.concat(stderr).toString('utf8') || `exit ${code}`}`))
+    })
+  })
 }
 
 async function readBodyJson(req) {

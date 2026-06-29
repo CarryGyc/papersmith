@@ -41,14 +41,14 @@ describe('C2 shell components', () => {
     expect(screen.getByText('Synced')).toBeInTheDocument()
   })
 
-  it('renders the copy feedback action to the right of Local Save', () => {
+  it('renders the copy feedback action to the right of Local autosave', () => {
     const handleCopyFeedback = vi.fn()
     const { container } = render(<CommandStrip syncState="synced" onCopyFeedback={handleCopyFeedback} />)
 
     const commandPills = container.querySelector('.command-pills')
     expect(Array.from(commandPills.children).map((child) => child.textContent)).toEqual([
       'Synced',
-      'Local Save',
+      'Local autosave',
       'Copy feedback'
     ])
 
@@ -56,7 +56,7 @@ describe('C2 shell components', () => {
     expect(handleCopyFeedback).toHaveBeenCalledTimes(1)
   })
 
-  it('renders draft version buttons between Local Save and Copy feedback', () => {
+  it('renders draft version buttons between Local autosave and Copy feedback', () => {
     const handleVersionSelect = vi.fn()
     const { container } = render(
       <CommandStrip
@@ -74,7 +74,7 @@ describe('C2 shell components', () => {
     const commandPills = container.querySelector('.command-pills')
     expect(Array.from(commandPills.children).map((child) => child.textContent)).toEqual([
       'Synced',
-      'Local Save',
+      'Local autosave',
       'Draft ADraft B',
       'Copy feedback'
     ])

@@ -27,7 +27,7 @@ export default function CommandStrip({
       </label>
       <div className="command-pills" aria-label="Document sync state">
         <span className={`sync-pill sync-pill-${syncState}`}>{label}</span>
-        <span className="version-pill">Local Save</span>
+        <span className="version-pill">Local autosave</span>
         {visibleVersions.length > 1 ? (
           <div className="version-switcher" aria-label="Draft versions">
             {visibleVersions.map((version) => (

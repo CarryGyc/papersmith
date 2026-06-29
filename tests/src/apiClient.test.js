@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createAnnotation, getDocument, putDocument, putSelection } from '../../src/lib/apiClient.js'
+import { copyFeedbackFile, createAnnotation, getDocument, putDocument, putSelection } from '../../src/lib/apiClient.js'
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -156,6 +156,27 @@ describe('api client', () => {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(annotationPayload)
+    })
+  })
+
+  it('copies feedback as a local markdown file through the API', async () => {
+    const responsePayload = {
+      ok: true,
+      path: 'E:\\gyc_re\\papersmith\\papersmith\\exports\\papersmith-feedback.md',
+      fileName: 'papersmith-feedback.md',
+      copiedToClipboard: true
+    }
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      text: async () => JSON.stringify(responsePayload)
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(copyFeedbackFile('# PaperSmith Revision Feedback')).resolves.toEqual(responsePayload)
+    expect(fetchMock).toHaveBeenCalledWith('/api/feedback-file', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ markdown: '# PaperSmith Revision Feedback' })
     })
   })
 

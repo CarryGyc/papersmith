@@ -5,7 +5,7 @@ import CommandStrip from './components/CommandStrip.jsx'
 import EditorSurface from './components/EditorSurface.jsx'
 import InspectorPanel from './components/InspectorPanel.jsx'
 import ToolRail from './components/ToolRail.jsx'
-import { createAnnotation, getDocument, putDocument, putSelection } from './lib/apiClient.js'
+import { copyFeedbackFile, createAnnotation, getDocument, putDocument, putSelection } from './lib/apiClient.js'
 import { buildFeedbackMarkdown } from './lib/feedbackMarkdown.js'
 
 export default function App() {
@@ -175,16 +175,22 @@ export default function App() {
     const markdown = buildFeedbackMarkdown(documentState, activeOverallComment(documentState))
 
     try {
-      await copyMarkdownDocument(markdown)
+      await copyFeedbackFile(markdown)
       setCopyFeedbackState('copied')
       scheduleCopyFeedbackReset()
     } catch {
       try {
-        downloadMarkdown(markdown)
+        await copyMarkdownDocument(markdown)
         setCopyFeedbackState('copied')
         scheduleCopyFeedbackReset()
       } catch {
-        setCopyFeedbackState('error')
+        try {
+          downloadMarkdown(markdown)
+          setCopyFeedbackState('copied')
+          scheduleCopyFeedbackReset()
+        } catch {
+          setCopyFeedbackState('error')
+        }
       }
     }
   }

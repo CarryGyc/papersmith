@@ -32,6 +32,14 @@ export async function createAnnotation(annotationPayload) {
   )
 }
 
+export async function copyFeedbackFile(markdown) {
+  return fetchJson('/api/feedback-file', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ markdown })
+  })
+}
+
 async function fetchJson(url, options) {
   let response
   try {

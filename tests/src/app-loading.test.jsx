@@ -184,18 +184,30 @@ describe('App document loading', () => {
   })
 
   it('copies feedback for only the currently visible draft version', async () => {
-    const writeText = vi.fn(async () => {})
-    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ payload: versionedDocumentPayload() })))
-    vi.stubGlobal('navigator', { clipboard: { writeText } })
+    const feedbackFileRequests = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url, options) => {
+        if (url === '/api/feedback-file') {
+          feedbackFileRequests.push(JSON.parse(options.body))
+          return jsonResponse({ ok: true, path: 'papersmith-feedback.md', fileName: 'papersmith-feedback.md' })
+        }
+        return jsonResponse({ payload: versionedDocumentPayload() })
+      })
+    )
 
     render(<App />)
     expect(await screen.findByText('Draft A text')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Draft B' }))
     fireEvent.click(screen.getByRole('button', { name: 'Copy feedback' }))
+    await act(async () => {
+      await Promise.resolve()
+      await Promise.resolve()
+    })
 
-    expect(writeText).toHaveBeenCalledTimes(1)
-    const markdown = writeText.mock.calls[0][0]
+    expect(feedbackFileRequests).toHaveLength(1)
+    const markdown = feedbackFileRequests[0].markdown
     expect(markdown).toContain('# PaperSmith Revision Feedback')
     expect(markdown).toContain('## Current Draft（完整原文）')
     expect(markdown).toContain('## Local Comments（局部批注）')
@@ -679,11 +691,16 @@ describe('App document loading', () => {
 
   it('copies revision feedback as a complete markdown document and resets the copied state after three seconds', async () => {
     const writeText = vi.fn(async () => {})
+    const feedbackFileRequests = []
     vi.stubGlobal('navigator', { clipboard: { writeText } })
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () =>
-        jsonResponse({
+      vi.fn(async (url, options) => {
+        if (url === '/api/feedback-file') {
+          feedbackFileRequests.push(JSON.parse(options.body))
+          return jsonResponse({ ok: true, path: 'papersmith-feedback.md', fileName: 'papersmith-feedback.md' })
+        }
+        return jsonResponse({
           payload: documentPayload('You should revise this sentence.', {
             annotations: [
               {
@@ -696,7 +713,7 @@ describe('App document loading', () => {
             ]
           })
         })
-      )
+      })
     )
 
     render(<App />)
@@ -717,8 +734,8 @@ describe('App document loading', () => {
       await Promise.resolve()
     })
 
-    expect(writeText).toHaveBeenCalledTimes(1)
-    const markdown = writeText.mock.calls[0][0]
+    expect(feedbackFileRequests).toHaveLength(1)
+    const markdown = feedbackFileRequests[0].markdown
     expect(markdown).toContain('# PaperSmith Revision Feedback')
     expect(markdown).toContain('## Current Draft（完整原文）')
     expect(markdown).toContain('You should revise this sentence.')
@@ -728,6 +745,7 @@ describe('App document loading', () => {
     expect(markdown).toContain('## Overall Comment（整体批注）')
     expect(markdown).toContain('Make unmarked content more academic.')
     expect(markdown).toContain('请输出修改后的完整正文，不要只回复 comments 或修改说明。')
+    expect(writeText).not.toHaveBeenCalled()
     expect(createObjectURL).not.toHaveBeenCalled()
     expect(anchorClick).not.toHaveBeenCalled()
     expect(revokeObjectURL).not.toHaveBeenCalled()
@@ -739,12 +757,24 @@ describe('App document loading', () => {
     expect(screen.getByRole('button', { name: 'Copy feedback' })).toBeInTheDocument()
   })
 
-  it('falls back to selection copy before downloading when clipboard text write fails', async () => {
+  it('falls back to selection copy before downloading when file copy and clipboard text write fail', async () => {
     const writeText = vi.fn(async () => {
       throw new Error('clipboard blocked')
     })
     vi.stubGlobal('navigator', { clipboard: { writeText } })
-    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ payload: documentPayload('Fallback draft') })))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url) => {
+        if (url === '/api/feedback-file') {
+          return {
+            ok: false,
+            status: 500,
+            text: async () => 'file clipboard blocked'
+          }
+        }
+        return jsonResponse({ payload: documentPayload('Fallback draft') })
+      })
+    )
     const createObjectURL = vi.fn()
     vi.stubGlobal('URL', { ...globalThis.URL, createObjectURL, revokeObjectURL: vi.fn() })
     vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
@@ -779,7 +809,19 @@ describe('App document loading', () => {
 
   it('falls back to selection copy when the Clipboard API is unavailable', async () => {
     vi.stubGlobal('navigator', {})
-    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ payload: documentPayload('No clipboard draft') })))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url) => {
+        if (url === '/api/feedback-file') {
+          return {
+            ok: false,
+            status: 500,
+            text: async () => 'file clipboard blocked'
+          }
+        }
+        return jsonResponse({ payload: documentPayload('No clipboard draft') })
+      })
+    )
     const createObjectURL = vi.fn()
     vi.stubGlobal('URL', { ...globalThis.URL, createObjectURL, revokeObjectURL: vi.fn() })
     vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
