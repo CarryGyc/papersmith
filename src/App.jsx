@@ -175,11 +175,17 @@ export default function App() {
     const markdown = buildFeedbackMarkdown(documentState, activeOverallComment(documentState))
 
     try {
-      downloadMarkdown(markdown)
+      await copyMarkdownDocument(markdown)
       setCopyFeedbackState('copied')
       scheduleCopyFeedbackReset()
     } catch {
-      setCopyFeedbackState('error')
+      try {
+        downloadMarkdown(markdown)
+        setCopyFeedbackState('copied')
+        scheduleCopyFeedbackReset()
+      } catch {
+        setCopyFeedbackState('error')
+      }
     }
   }
 
@@ -353,6 +359,60 @@ function downloadMarkdown(markdown) {
   anchor.download = 'papersmith-feedback.md'
   anchor.click()
   URL.revokeObjectURL(url)
+}
+
+async function copyMarkdownDocument(markdown) {
+  const clipboard = typeof navigator === 'undefined' ? null : navigator.clipboard
+  if (clipboard && typeof ClipboardItem === 'function' && typeof clipboard.write === 'function') {
+    try {
+      await clipboard.write([
+        new ClipboardItem({
+          'text/markdown': new Blob([markdown], { type: 'text/markdown' }),
+          'text/plain': new Blob([markdown], { type: 'text/plain' })
+        })
+      ])
+      return
+    } catch {
+      // Some browsers reject text/markdown clipboard items. Plain text keeps the .md document intact.
+    }
+  }
+
+  if (clipboard && typeof clipboard.writeText === 'function') {
+    try {
+      await clipboard.writeText(markdown)
+      return
+    } catch {
+      // Fall back to the legacy copy path below for embedded browsers.
+    }
+  }
+
+  if (copyMarkdownDocumentWithSelection(markdown)) {
+    return
+  }
+
+  throw new Error('Clipboard cannot write text.')
+}
+
+function copyMarkdownDocumentWithSelection(markdown) {
+  if (typeof document === 'undefined' || typeof document.execCommand !== 'function') return false
+
+  const textarea = document.createElement('textarea')
+  textarea.value = markdown
+  textarea.setAttribute('readonly', '')
+  textarea.style.position = 'fixed'
+  textarea.style.top = '-1000px'
+  textarea.style.left = '-1000px'
+  textarea.style.opacity = '0'
+
+  document.body.appendChild(textarea)
+  textarea.focus()
+  textarea.select()
+
+  try {
+    return document.execCommand('copy') === true
+  } finally {
+    document.body.removeChild(textarea)
+  }
 }
 
 function openDocumentEventStream(onDocumentChanged) {

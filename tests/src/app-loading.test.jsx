@@ -183,13 +183,10 @@ describe('App document loading', () => {
     expect(documentSaves.at(-1).versions.find((version) => version.id === 'draft-a').overallComment).toBe('Overall A')
   })
 
-  it('downloads feedback for only the currently visible draft version', async () => {
+  it('copies feedback for only the currently visible draft version', async () => {
+    const writeText = vi.fn(async () => {})
     vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ payload: versionedDocumentPayload() })))
-    vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn(async () => {}) } })
-    const createObjectURL = vi.fn(() => 'blob:papersmith-feedback')
-    const revokeObjectURL = vi.fn()
-    vi.stubGlobal('URL', { ...globalThis.URL, createObjectURL, revokeObjectURL })
-    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    vi.stubGlobal('navigator', { clipboard: { writeText } })
 
     render(<App />)
     expect(await screen.findByText('Draft A text')).toBeInTheDocument()
@@ -197,7 +194,12 @@ describe('App document loading', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Draft B' }))
     fireEvent.click(screen.getByRole('button', { name: 'Copy feedback' }))
 
-    const markdown = await readBlobText(createObjectURL.mock.calls[0][0])
+    expect(writeText).toHaveBeenCalledTimes(1)
+    const markdown = writeText.mock.calls[0][0]
+    expect(markdown).toContain('# PaperSmith Revision Feedback')
+    expect(markdown).toContain('## Current Draft（完整原文）')
+    expect(markdown).toContain('## Local Comments（局部批注）')
+    expect(markdown).toContain('## Overall Comment（整体批注）')
     expect(markdown).toContain('Draft B text')
     expect(markdown).toContain('Comment for B')
     expect(markdown).toContain('Overall B')
@@ -675,8 +677,7 @@ describe('App document loading', () => {
     expect(annotationRequests.map((request) => request.selection.text)).toEqual(['Edited', 'Later'])
   })
 
-  it('downloads revision feedback as a markdown file and resets the copied state after three seconds', async () => {
-    const user = userEvent.setup()
+  it('copies revision feedback as a complete markdown document and resets the copied state after three seconds', async () => {
     const writeText = vi.fn(async () => {})
     vi.stubGlobal('navigator', { clipboard: { writeText } })
     vi.stubGlobal(
@@ -705,29 +706,104 @@ describe('App document loading', () => {
     fireEvent.change(screen.getByLabelText('Overall comment'), {
       target: { value: 'Make unmarked content more academic.' }
     })
-    const createObjectURL = vi.fn(() => 'blob:papersmith-feedback')
+    const createObjectURL = vi.fn()
     const revokeObjectURL = vi.fn()
     vi.stubGlobal('URL', { ...globalThis.URL, createObjectURL, revokeObjectURL })
     const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
 
     fireEvent.click(screen.getByRole('button', { name: 'Copy feedback' }))
+    await act(async () => {
+      await Promise.resolve()
+      await Promise.resolve()
+    })
 
-    expect(writeText).not.toHaveBeenCalled()
-    expect(createObjectURL).toHaveBeenCalledTimes(1)
-    const feedbackBlob = createObjectURL.mock.calls[0][0]
-    expect(feedbackBlob).toBeInstanceOf(Blob)
-    expect(feedbackBlob.type).toBe('text/markdown;charset=utf-8')
-    expect(feedbackBlob.size).toBeGreaterThan(0)
-    expect(anchorClick).toHaveBeenCalledTimes(1)
-    expect(anchorClick.mock.instances[0]).toHaveAttribute('download', 'papersmith-feedback.md')
-    expect(anchorClick.mock.instances[0]).toHaveAttribute('href', 'blob:papersmith-feedback')
-    expect(revokeObjectURL).toHaveBeenCalledWith('blob:papersmith-feedback')
+    expect(writeText).toHaveBeenCalledTimes(1)
+    const markdown = writeText.mock.calls[0][0]
+    expect(markdown).toContain('# PaperSmith Revision Feedback')
+    expect(markdown).toContain('## Current Draft（完整原文）')
+    expect(markdown).toContain('You should revise this sentence.')
+    expect(markdown).toContain('## Local Comments（局部批注）')
+    expect(markdown).toContain('标注文本：You')
+    expect(markdown).toContain('修改要求：请按这个要求改这部分：Use a more formal subject.')
+    expect(markdown).toContain('## Overall Comment（整体批注）')
+    expect(markdown).toContain('Make unmarked content more academic.')
+    expect(markdown).toContain('请输出修改后的完整正文，不要只回复 comments 或修改说明。')
+    expect(createObjectURL).not.toHaveBeenCalled()
+    expect(anchorClick).not.toHaveBeenCalled()
+    expect(revokeObjectURL).not.toHaveBeenCalled()
     expect(screen.getByRole('button', { name: 'Copied' })).toBeInTheDocument()
 
     await act(async () => {
       vi.advanceTimersByTime(3000)
     })
     expect(screen.getByRole('button', { name: 'Copy feedback' })).toBeInTheDocument()
+  })
+
+  it('falls back to selection copy before downloading when clipboard text write fails', async () => {
+    const writeText = vi.fn(async () => {
+      throw new Error('clipboard blocked')
+    })
+    vi.stubGlobal('navigator', { clipboard: { writeText } })
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ payload: documentPayload('Fallback draft') })))
+    const createObjectURL = vi.fn()
+    vi.stubGlobal('URL', { ...globalThis.URL, createObjectURL, revokeObjectURL: vi.fn() })
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+
+    const originalExecCommand = document.execCommand
+    const execCommand = vi.fn(() => true)
+    document.execCommand = execCommand
+
+    try {
+      render(<App />)
+      expect(await screen.findByText('Fallback draft')).toBeInTheDocument()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Copy feedback' }))
+      await act(async () => {
+        await Promise.resolve()
+        await Promise.resolve()
+      })
+
+      expect(writeText).toHaveBeenCalledTimes(1)
+      expect(execCommand).toHaveBeenCalledWith('copy')
+      expect(
+        Array.from(document.querySelectorAll('textarea')).some((textarea) =>
+          textarea.value.includes('# PaperSmith Revision Feedback')
+        )
+      ).toBe(false)
+      expect(createObjectURL).not.toHaveBeenCalled()
+      expect(screen.getByRole('button', { name: 'Copied' })).toBeInTheDocument()
+    } finally {
+      document.execCommand = originalExecCommand
+    }
+  })
+
+  it('falls back to selection copy when the Clipboard API is unavailable', async () => {
+    vi.stubGlobal('navigator', {})
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ payload: documentPayload('No clipboard draft') })))
+    const createObjectURL = vi.fn()
+    vi.stubGlobal('URL', { ...globalThis.URL, createObjectURL, revokeObjectURL: vi.fn() })
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+
+    const originalExecCommand = document.execCommand
+    const execCommand = vi.fn(() => true)
+    document.execCommand = execCommand
+
+    try {
+      render(<App />)
+      expect(await screen.findByText('No clipboard draft')).toBeInTheDocument()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Copy feedback' }))
+      await act(async () => {
+        await Promise.resolve()
+        await Promise.resolve()
+      })
+
+      expect(execCommand).toHaveBeenCalledWith('copy')
+      expect(createObjectURL).not.toHaveBeenCalled()
+      expect(screen.getByRole('button', { name: 'Copied' })).toBeInTheDocument()
+    } finally {
+      document.execCommand = originalExecCommand
+    }
   })
 
   it('requires a fresh editor selection before reopening the composer after annotation save', async () => {
@@ -1227,15 +1303,6 @@ function extractText(node) {
   if (typeof node.text === 'string') return node.text
   if (!Array.isArray(node.content)) return ''
   return node.content.map(extractText).join('')
-}
-
-function readBlobText(blob) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.addEventListener('load', () => resolve(reader.result))
-    reader.addEventListener('error', () => reject(reader.error))
-    reader.readAsText(blob)
-  })
 }
 
 function jsonResponse(payload) {
