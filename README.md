@@ -95,6 +95,9 @@ When PaperSmith is open, `papersmith-live-draft-sync` instructs Codex to show th
 first in chat, sync only that manuscript text to PaperSmith, and place any extra explanation after it.
 In PaperSmith writing mode, requests such as "给我正文", "发给我 introduction", or "输出上一版段落"
 are treated as manuscript-body output and should sync unless the user explicitly asks for chat-only output.
+`Copy feedback` downloads `papersmith-feedback.md` as a complete revision request: it includes the
+current draft's full text, local comments mapped to their marked text, the overall comment, and an
+explicit instruction for Codex to return the revised full draft rather than a comment-only reply.
 
 Current MCP tools:
 

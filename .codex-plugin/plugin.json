@@ -1,6 +1,6 @@
 {
   "name": "papersmith",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "PaperSmith connects Codex to a local academic writing editor for drafting, annotation-aware revision, and selection-based academic polishing.",
   "author": {
     "name": "PaperSmith"
