@@ -220,6 +220,71 @@ describe('App document loading', () => {
     expect(markdown).not.toContain('Overall A')
   })
 
+  it('renames the active Codex draft version and persists the new label', async () => {
+    const documentSaves = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url, options) => {
+        if (url === '/api/document' && options?.method === 'PUT') {
+          const payload = JSON.parse(options.body)
+          documentSaves.push(payload)
+          return jsonResponse({ payload })
+        }
+        return jsonResponse({ payload: versionedDocumentPayload() })
+      })
+    )
+
+    render(<App />)
+    expect(await screen.findByText('Draft A text')).toBeInTheDocument()
+    vi.useFakeTimers()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Rename draft version' }))
+    fireEvent.change(screen.getByLabelText('Draft version name'), { target: { value: 'Introduction revision' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft version name' }))
+    await act(async () => {
+      vi.advanceTimersByTime(400)
+      await Promise.resolve()
+    })
+
+    expect(screen.getByRole('option', { name: 'Introduction revision' })).toBeInTheDocument()
+    expect(documentSaves.at(-1).activeVersionId).toBe('draft-a')
+    expect(documentSaves.at(-1).versions.find((version) => version.id === 'draft-a').label).toBe(
+      'Introduction revision'
+    )
+  })
+
+  it('deletes the active Codex draft version and switches to the adjacent draft', async () => {
+    const documentSaves = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url, options) => {
+        if (url === '/api/document' && options?.method === 'PUT') {
+          const payload = JSON.parse(options.body)
+          documentSaves.push(payload)
+          return jsonResponse({ payload })
+        }
+        return jsonResponse({ payload: versionedDocumentPayload() })
+      })
+    )
+
+    render(<App />)
+    expect(await screen.findByText('Draft A text')).toBeInTheDocument()
+    vi.useFakeTimers()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete draft version' }))
+    await act(async () => {
+      vi.advanceTimersByTime(400)
+      await Promise.resolve()
+    })
+
+    expect(screen.getByText('Draft B text')).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'Draft A' })).not.toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Draft B' })).toBeInTheDocument()
+    expect(documentSaves.at(-1).activeVersionId).toBe('draft-b')
+    expect(documentSaves.at(-1).versions.map((version) => version.id)).toEqual(['draft-b'])
+    expect(extractText(documentSaves.at(-1).document)).toBe('Draft B text')
+  })
+
   it('renders document content in a stable workspace center row', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ payload: documentPayload('Initial copy') })))
 

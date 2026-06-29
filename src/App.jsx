@@ -219,6 +219,28 @@ export default function App() {
     queueDocumentSave(nextPayload)
   }
 
+  function handleVersionRename(versionId, label) {
+    const nextPayload = renameVersionInPayload(documentState, versionId, label)
+    if (!nextPayload) return
+
+    setSaveError(null)
+    setDocumentState(nextPayload)
+    queueDocumentSave(nextPayload)
+  }
+
+  function handleVersionDelete(versionId) {
+    const nextPayload = deleteVersionInPayload(documentState, versionId)
+    if (!nextPayload) return
+
+    setSaveError(null)
+    setAnnotationError(null)
+    setSelectedAnnotation(null)
+    setShowComposer(false)
+    updateLatestSelection(null)
+    setDocumentState(nextPayload)
+    queueDocumentSave(nextPayload)
+  }
+
   function scheduleCopyFeedbackReset() {
     clearCopyFeedbackTimer()
     copyFeedbackTimerRef.current = window.setTimeout(() => {
@@ -302,6 +324,8 @@ export default function App() {
         versions={documentState?.versions ?? []}
         activeVersionId={documentState?.activeVersionId}
         onSelectVersion={handleVersionSelect}
+        onRenameVersion={handleVersionRename}
+        onDeleteVersion={handleVersionDelete}
       />
       <ToolRail activeTool={activeTool} onSelectTool={handleSelectTool} />
       <section className="workspace-center" aria-label="Document">
@@ -505,6 +529,51 @@ function selectVersionInPayload(payload, versionId) {
     annotations: Array.isArray(selectedVersion.annotations) ? selectedVersion.annotations : [],
     overallComment: typeof selectedVersion.overallComment === 'string' ? selectedVersion.overallComment : '',
     activeVersionId: selectedVersion.id
+  }
+}
+
+function renameVersionInPayload(payload, versionId, label) {
+  if (!payload || typeof payload !== 'object') return null
+  const nextLabel = typeof label === 'string' ? label.trim() : ''
+  if (!nextLabel) return null
+
+  const syncedPayload = syncActiveVersionInPayload(payload)
+  const versions = Array.isArray(syncedPayload.versions) ? syncedPayload.versions : []
+  const selectedVersion = versions.find((version) => version.id === versionId)
+  if (!selectedVersion || selectedVersion.source !== 'codex') return null
+  if ((selectedVersion.label ?? selectedVersion.id) === nextLabel) return null
+
+  return {
+    ...syncedPayload,
+    versions: versions.map((version) => {
+      if (version.id !== versionId) return version
+      return {
+        ...version,
+        label: nextLabel
+      }
+    })
+  }
+}
+
+function deleteVersionInPayload(payload, versionId) {
+  if (!payload || typeof payload !== 'object') return null
+  const syncedPayload = syncActiveVersionInPayload(payload)
+  const versions = Array.isArray(syncedPayload.versions) ? syncedPayload.versions : []
+  const versionIndex = versions.findIndex((version) => version.id === versionId)
+  const selectedVersion = versions[versionIndex]
+  if (!selectedVersion || selectedVersion.source !== 'codex' || versions.length <= 1) return null
+
+  const nextVersions = versions.filter((version) => version.id !== versionId)
+  const nextVersion = nextVersions[Math.min(versionIndex, nextVersions.length - 1)] ?? nextVersions[0]
+  if (!nextVersion) return null
+
+  return {
+    ...syncedPayload,
+    document: nextVersion.document,
+    annotations: Array.isArray(nextVersion.annotations) ? nextVersion.annotations : [],
+    overallComment: typeof nextVersion.overallComment === 'string' ? nextVersion.overallComment : '',
+    activeVersionId: nextVersion.id,
+    versions: nextVersions
   }
 }
 

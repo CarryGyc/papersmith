@@ -90,6 +90,48 @@ describe('C2 shell components', () => {
     expect(handleVersionSelect).toHaveBeenCalledWith('draft-a')
   })
 
+  it('renames the selected Codex draft from the version controls', () => {
+    const handleVersionRename = vi.fn()
+    render(
+      <CommandStrip
+        syncState="synced"
+        versions={[
+          { id: 'welcome', label: 'Welcome', source: 'system' },
+          { id: 'draft-b', label: 'Draft B', source: 'codex' }
+        ]}
+        activeVersionId="draft-b"
+        onRenameVersion={handleVersionRename}
+      />
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Rename draft version' }))
+    expect(screen.getByLabelText('Draft version name')).toHaveValue('Draft B')
+
+    fireEvent.change(screen.getByLabelText('Draft version name'), { target: { value: 'Introduction revision' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft version name' }))
+
+    expect(handleVersionRename).toHaveBeenCalledWith('draft-b', 'Introduction revision')
+  })
+
+  it('deletes the selected Codex draft from the version controls', () => {
+    const handleVersionDelete = vi.fn()
+    render(
+      <CommandStrip
+        syncState="synced"
+        versions={[
+          { id: 'welcome', label: 'Welcome', source: 'system' },
+          { id: 'draft-b', label: 'Draft B', source: 'codex' }
+        ]}
+        activeVersionId="draft-b"
+        onDeleteVersion={handleVersionDelete}
+      />
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete draft version' }))
+
+    expect(handleVersionDelete).toHaveBeenCalledWith('draft-b')
+  })
+
   it('renders annotation inspector state', () => {
     render(<InspectorPanel annotations={[{ id: 'ann_1', type: 'clarity', comment: 'Define this term.', anchor: { text: 'long-term retention' } }]} />)
     expect(screen.getAllByText('Comments').length).toBeGreaterThan(0)

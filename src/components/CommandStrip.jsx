@@ -1,3 +1,5 @@
+import { useState } from 'react'
+
 const syncLabels = {
   idle: 'Idle',
   syncing: 'Codex Syncing',
@@ -11,13 +13,46 @@ export default function CommandStrip({
   copyFeedbackState = 'idle',
   versions = [],
   activeVersionId,
-  onSelectVersion
+  onSelectVersion,
+  onRenameVersion,
+  onDeleteVersion
 }) {
   const label = syncLabels[syncState] ?? syncLabels.idle
   const copyFeedbackLabel = copyFeedbackState === 'copied' ? 'Copied' : 'Copy feedback'
   const visibleVersions = Array.isArray(versions) ? versions : []
   const selectedVersionId =
     visibleVersions.find((version) => version.id === activeVersionId)?.id ?? visibleVersions[0]?.id ?? ''
+  const selectedVersion = visibleVersions.find((version) => version.id === selectedVersionId)
+  const selectedVersionLabel = selectedVersion?.label ?? selectedVersion?.id ?? ''
+  const canManageSelectedVersion = selectedVersion?.source === 'codex'
+  const canDeleteSelectedVersion = canManageSelectedVersion && visibleVersions.length > 1
+  const shouldRenderVersionRow = visibleVersions.length > 1 || canManageSelectedVersion
+  const [isRenamingVersion, setIsRenamingVersion] = useState(false)
+  const [versionNameDraft, setVersionNameDraft] = useState(selectedVersionLabel)
+
+  function beginVersionRename() {
+    setVersionNameDraft(selectedVersionLabel)
+    setIsRenamingVersion(true)
+  }
+
+  function cancelVersionRename() {
+    setVersionNameDraft(selectedVersionLabel)
+    setIsRenamingVersion(false)
+  }
+
+  function submitVersionRename(event) {
+    event.preventDefault()
+    const nextLabel = versionNameDraft.trim()
+    if (!selectedVersionId || !nextLabel) return
+
+    onRenameVersion?.(selectedVersionId, nextLabel)
+    setIsRenamingVersion(false)
+  }
+
+  function handleVersionSelectChange(event) {
+    setIsRenamingVersion(false)
+    onSelectVersion?.(event.target.value)
+  }
 
   return (
     <header className="command-strip" aria-label="PaperSmith command strip">
@@ -35,7 +70,7 @@ export default function CommandStrip({
           </button>
         ) : null}
       </div>
-      {visibleVersions.length > 1 ? (
+      {shouldRenderVersionRow ? (
         <div className="draft-version-row" aria-label="Draft versions">
           <label className="version-switcher">
             <span className="version-label">Version</span>
@@ -43,7 +78,7 @@ export default function CommandStrip({
               aria-label="Draft version"
               className="version-select"
               value={selectedVersionId}
-              onChange={(event) => onSelectVersion?.(event.target.value)}
+              onChange={handleVersionSelectChange}
             >
               {visibleVersions.map((version) => (
                 <option key={version.id} value={version.id}>
@@ -52,6 +87,55 @@ export default function CommandStrip({
               ))}
             </select>
           </label>
+          {canManageSelectedVersion ? (
+            isRenamingVersion ? (
+              <form className="version-rename-form" aria-label="Rename draft version form" onSubmit={submitVersionRename}>
+                <input
+                  aria-label="Draft version name"
+                  className="version-name-input"
+                  type="text"
+                  value={versionNameDraft}
+                  onChange={(event) => setVersionNameDraft(event.target.value)}
+                />
+                {onRenameVersion ? (
+                  <button className="version-action-button" type="submit" aria-label="Save draft version name">
+                    Save
+                  </button>
+                ) : null}
+                <button
+                  className="version-action-button version-action-muted"
+                  type="button"
+                  aria-label="Cancel draft version rename"
+                  onClick={cancelVersionRename}
+                >
+                  Cancel
+                </button>
+              </form>
+            ) : (
+              <div className="version-actions" aria-label="Draft version actions">
+                {onRenameVersion ? (
+                  <button
+                    className="version-action-button"
+                    type="button"
+                    aria-label="Rename draft version"
+                    onClick={beginVersionRename}
+                  >
+                    Rename
+                  </button>
+                ) : null}
+                {onDeleteVersion && canDeleteSelectedVersion ? (
+                  <button
+                    className="version-action-button version-action-danger"
+                    type="button"
+                    aria-label="Delete draft version"
+                    onClick={() => onDeleteVersion(selectedVersionId)}
+                  >
+                    Delete
+                  </button>
+                ) : null}
+              </div>
+            )
+          ) : null}
         </div>
       ) : null}
     </header>

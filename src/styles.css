@@ -173,7 +173,9 @@ button {
   grid-column: 1 / -1;
   display: flex;
   min-width: 0;
+  align-items: center;
   justify-content: flex-end;
+  gap: 6px;
 }
 
 .version-switcher {
@@ -221,6 +223,61 @@ button {
 
 .version-select:focus-visible {
   outline: none;
+}
+
+.version-actions,
+.version-rename-form {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.version-action-button {
+  display: inline-flex;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 9px;
+  color: #efe1bd;
+  background: rgb(255 255 255 / 5%);
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.version-action-button:hover {
+  border-color: rgb(214 173 82 / 32%);
+  background: rgb(214 173 82 / 13%);
+}
+
+.version-action-button:focus-visible,
+.version-name-input:focus-visible {
+  outline: 2px solid rgb(214 173 82 / 72%);
+  outline-offset: 2px;
+}
+
+.version-action-danger {
+  color: #f2b8ad;
+}
+
+.version-action-muted {
+  color: var(--muted-strong);
+}
+
+.version-name-input {
+  width: min(220px, 30vw);
+  min-width: 120px;
+  height: 28px;
+  padding: 0 9px;
+  color: #f6eddd;
+  background: rgb(255 255 255 / 6%);
+  border: 1px solid rgb(214 173 82 / 28%);
+  border-radius: 8px;
+  font-size: 12px;
 }
 
 .copy-feedback-button {
@@ -764,7 +821,7 @@ button {
     min-width: 0;
     width: 100%;
     grid-template-columns: var(--rail-width) minmax(0, 1fr);
-    grid-template-rows: 60px 56px minmax(0, 1fr) minmax(190px, auto);
+    grid-template-rows: 60px 88px minmax(0, 1fr) minmax(190px, auto);
     overflow: hidden;
   }
 
@@ -782,9 +839,9 @@ button {
   .command-strip {
     grid-column: 2 / 3;
     grid-row: 2 / 3;
-    height: 56px;
+    height: 88px;
     grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-rows: 34px;
+    grid-template-rows: 34px 28px;
     gap: 8px;
     padding: 6px 10px;
   }
@@ -804,7 +861,9 @@ button {
   }
 
   .draft-version-row {
-    display: none;
+    display: flex;
+    justify-content: flex-start;
+    overflow-x: auto;
   }
 
   .copy-feedback-button {
