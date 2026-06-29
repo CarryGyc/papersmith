@@ -38,6 +38,15 @@ describe('PaperSmith skill contracts', () => {
     expect(skill).toContain('后续让我生成、给出、发给你、输出或返回论文正文时，默认使用 `papersmith-live-draft-sync`')
   })
 
+  it('requires visible in-app browser navigation when opening PaperSmith', () => {
+    const skill = readSkill('papersmith-open-editor')
+
+    expect(skill).toContain('browser:control-in-app-browser')
+    expect(skill).toContain('await (await browser.capabilities.get("visibility")).set(true)')
+    expect(skill).toContain('browser.tabs.new()')
+    expect(skill).toContain('tab.goto("http://127.0.0.1:43227/")')
+  })
+
   it('does not ignore the PaperSmith root skill directory', () => {
     const gitignore = readFileSync('.gitignore', 'utf8')
 
