@@ -1,13 +1,6 @@
 const tools = [
-  { id: 'insert', label: 'Insert', icon: '+' },
-  { id: 'annotate', label: 'Annotate', icon: 'A' },
-  { id: 'format', label: 'Format', icon: 'T' },
-  { id: 'cite', label: 'Cite', icon: 'C' },
-  { id: 'outline', label: 'Outline', icon: '#' },
-  { id: 'export', label: 'Export', icon: 'E' }
+  { id: 'annotate', label: 'Comments', icon: 'C' }
 ]
-
-const settingsTool = { id: 'settings', label: 'Settings', icon: '*' }
 
 export default function ToolRail({ activeTool = 'annotate', onSelectTool }) {
   return (
@@ -16,9 +9,6 @@ export default function ToolRail({ activeTool = 'annotate', onSelectTool }) {
         {tools.map((tool) => (
           <ToolButton key={tool.id} tool={tool} activeTool={activeTool} onSelectTool={onSelectTool} />
         ))}
-      </div>
-      <div className="tool-rail-bottom">
-        <ToolButton tool={settingsTool} activeTool={activeTool} onSelectTool={onSelectTool} />
       </div>
     </nav>
   )

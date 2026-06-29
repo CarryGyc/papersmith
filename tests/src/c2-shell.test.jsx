@@ -19,7 +19,13 @@ describe('C2 shell components', () => {
 
   it('renders tool rail controls', () => {
     render(<ToolRail activeTool="annotate" onSelectTool={() => {}} />)
-    expect(screen.getByRole('button', { name: 'Annotate' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Comments' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.queryByRole('button', { name: 'Insert' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Format' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Cite' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Outline' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Export' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Settings' })).not.toBeInTheDocument()
   })
 
   it('updates tool rail pressed state when a tool is selected', () => {
@@ -29,10 +35,9 @@ describe('C2 shell components', () => {
     }
 
     render(<ToolRailHarness />)
-    fireEvent.click(screen.getByRole('button', { name: 'Format' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Comments' }))
 
-    expect(screen.getByRole('button', { name: 'Format' })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByRole('button', { name: 'Annotate' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'Comments' })).toHaveAttribute('aria-pressed', 'true')
   })
 
   it('renders command and sync state', () => {
@@ -41,22 +46,22 @@ describe('C2 shell components', () => {
     expect(screen.getByText('Synced')).toBeInTheDocument()
   })
 
-  it('renders the copy feedback action to the right of Local autosave', () => {
+  it('renders sync state and copy feedback without local autosave or draft buttons in the status row', () => {
     const handleCopyFeedback = vi.fn()
     const { container } = render(<CommandStrip syncState="synced" onCopyFeedback={handleCopyFeedback} />)
 
     const commandPills = container.querySelector('.command-pills')
     expect(Array.from(commandPills.children).map((child) => child.textContent)).toEqual([
       'Synced',
-      'Local autosave',
       'Copy feedback'
     ])
+    expect(screen.queryByText('Local autosave')).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Copy feedback' }))
     expect(handleCopyFeedback).toHaveBeenCalledTimes(1)
   })
 
-  it('renders draft version buttons between Local autosave and Copy feedback', () => {
+  it('renders draft versions in a separate dropdown row', () => {
     const handleVersionSelect = vi.fn()
     const { container } = render(
       <CommandStrip
@@ -74,18 +79,21 @@ describe('C2 shell components', () => {
     const commandPills = container.querySelector('.command-pills')
     expect(Array.from(commandPills.children).map((child) => child.textContent)).toEqual([
       'Synced',
-      'Local autosave',
-      'Draft ADraft B',
       'Copy feedback'
     ])
-    expect(screen.getByRole('button', { name: 'Draft B' })).toHaveAttribute('aria-pressed', 'true')
+    expect(container.querySelector('.draft-version-row')).toBeInTheDocument()
+    expect(screen.getByLabelText('Draft version')).toHaveValue('draft-b')
+    expect(screen.getByRole('option', { name: 'Draft A' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Draft B' })).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Draft A' }))
+    fireEvent.change(screen.getByLabelText('Draft version'), { target: { value: 'draft-a' } })
     expect(handleVersionSelect).toHaveBeenCalledWith('draft-a')
   })
 
   it('renders annotation inspector state', () => {
     render(<InspectorPanel annotations={[{ id: 'ann_1', type: 'clarity', comment: 'Define this term.', anchor: { text: 'long-term retention' } }]} />)
+    expect(screen.getAllByText('Comments').length).toBeGreaterThan(0)
+    expect(screen.getByText('1 comments')).toBeInTheDocument()
     expect(screen.getByText('Define this term.')).toBeInTheDocument()
     expect(screen.getByText('long-term retention')).toBeInTheDocument()
   })
@@ -119,7 +127,7 @@ describe('C2 shell components', () => {
 
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument()
     expect(screen.queryAllByRole('tab')).toHaveLength(0)
-    expect(screen.getByRole('button', { name: 'Annotations' })).toBeInTheDocument()
+    expect(screen.getByText('Comments')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Text Info' })).not.toBeInTheDocument()
   })
 

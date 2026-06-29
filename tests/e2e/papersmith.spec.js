@@ -30,7 +30,7 @@ test('PaperSmith keeps multiple annotation comments visible in the inspector', a
   await page.goto(APP_URL)
 
   await expect(page.getByLabel('PaperSmith editor workspace')).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Annotations' })).toBeVisible()
+  await expect(page.locator('.inspector-tabs').getByText('Comments', { exact: true })).toBeVisible()
   await expect(page.getByText('Text Info')).toHaveCount(0)
 
   const firstResponse = await page.request.post(`${APP_URL}/api/annotations`, {
@@ -67,7 +67,7 @@ test('PaperSmith keeps multiple annotation comments visible in the inspector', a
   await expect(page.locator('.annotation-details').filter({ hasText: secondComment }).getByText('PaperSmith', { exact: true })).toBeVisible()
 })
 
-test('PaperSmith downloads revision feedback markdown for Codex', async ({ page }) => {
+test('PaperSmith copies revision feedback markdown file for Codex', async ({ page }) => {
   const suffix = Date.now()
   const localComment = `rewrite this marked wording ${suffix}`
   const overallComment = `make unmarked text more academic ${suffix}`
@@ -89,21 +89,25 @@ test('PaperSmith downloads revision feedback markdown for Codex', async ({ page 
 
   await page.reload()
   await page.getByLabel('Overall comment').fill(overallComment)
-  const [download] = await Promise.all([
-    page.waitForEvent('download'),
+  const [feedbackResponse] = await Promise.all([
+    page.waitForResponse((response) => response.url().endsWith('/api/feedback-file')),
     page.getByRole('button', { name: 'Copy feedback' }).click()
   ])
 
-  expect(download.suggestedFilename()).toBe('papersmith-feedback.md')
+  expect(feedbackResponse.ok()).toBe(true)
+  const feedbackPayload = await feedbackResponse.json()
+  expect(feedbackPayload).toMatchObject({
+    fileName: 'papersmith-feedback.md',
+    copiedToClipboard: true
+  })
   await expect(page.getByRole('button', { name: 'Copied' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Copy feedback' })).toBeVisible({ timeout: 4000 })
 
-  const downloadPath = await download.path()
-  const fileText = await readFile(downloadPath, 'utf8')
+  const fileText = await readFile(feedbackPayload.path, 'utf8')
   expect(fileText).toContain('# PaperSmith Revision Feedback')
   expect(fileText).toContain('请严格区分局部批注与整体批注的作用范围。')
   expect(fileText).toContain('Overall Comment 只适用于未被 Local Comments 覆盖的其他内容。')
   expect(fileText).toContain(overallComment)
   expect(fileText).toContain('标注文本：You')
-  expect(fileText).toContain(`Comment：请按这个要求改这部分：${localComment}`)
+  expect(fileText).toContain(`Comment / 修改要求：请按这个要求改这部分：${localComment}`)
 })

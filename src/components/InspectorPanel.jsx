@@ -9,9 +9,9 @@ export default function InspectorPanel({
   return (
     <aside className="inspector-panel" aria-label="PaperSmith inspector">
       <div className="inspector-tabs" aria-label="Inspector views">
-        <button aria-pressed="true" className="inspector-tab-active" type="button">
-          Annotations
-        </button>
+        <span className="inspector-tab-label inspector-tab-active">
+          Comments
+        </span>
       </div>
       <div className="inspector-content">
         <OverallComment value={overallComment} onChange={onOverallCommentChange} />
@@ -44,9 +44,9 @@ function AnnotationList({ annotations, selectedAnnotation }) {
   const orderedAnnotations = [...annotations].reverse()
 
   return (
-    <section className="annotation-list" aria-label="Saved annotations">
+    <section className="annotation-list" aria-label="Saved comments">
       <div className="annotation-list-header">
-        <p className="inspector-kicker">Saved annotations</p>
+        <p className="inspector-kicker">Comments</p>
         <p className="annotation-count">{formatAnnotationCount(annotations.length)}</p>
       </div>
       {orderedAnnotations.map((annotation) => (
@@ -63,8 +63,8 @@ function AnnotationList({ annotations, selectedAnnotation }) {
 function AnnotationDetails({ annotation, isSelected = false }) {
   return (
     <article className={isSelected ? 'annotation-details annotation-details-selected' : 'annotation-details'}>
-      <p className="inspector-kicker">{isSelected ? 'Latest annotation' : annotation.type ?? 'annotation'}</p>
-      <h2>{annotation.type ?? 'annotation'}</h2>
+      <p className="inspector-kicker">{isSelected ? 'Latest comment' : annotation.type ?? 'comment'}</p>
+      <h2>{annotation.type ?? 'comment'}</h2>
       <p className="annotation-comment">{annotation.comment}</p>
       <div className="anchor-card">
         <span>Anchor</span>
@@ -77,15 +77,15 @@ function AnnotationDetails({ annotation, isSelected = false }) {
 function InspectorEmptyState() {
   return (
     <div className="inspector-empty">
-      <p className="inspector-kicker">No annotations yet</p>
+      <p className="inspector-kicker">No comments yet</p>
       <h2>Comments will appear here</h2>
-      <p>Select text and save a comment to build an annotation list.</p>
+      <p>Select text and save a comment to build a comments list.</p>
     </div>
   )
 }
 
 function formatAnnotationCount(count) {
-  return count === 1 ? '1 annotation' : `${count} annotations`
+  return `${count} comments`
 }
 
 function annotationKey(annotation) {

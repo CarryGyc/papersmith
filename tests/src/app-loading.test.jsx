@@ -160,7 +160,7 @@ describe('App document loading', () => {
     expect(screen.getByLabelText('Overall comment')).toHaveValue('Overall A')
 
     vi.useFakeTimers()
-    fireEvent.click(screen.getByRole('button', { name: 'Draft B' }))
+    fireEvent.change(screen.getByLabelText('Draft version'), { target: { value: 'draft-b' } })
 
     expect(screen.getByText('Draft B text')).toBeInTheDocument()
     expect(screen.getByText('Comment for B')).toBeInTheDocument()
@@ -199,7 +199,7 @@ describe('App document loading', () => {
     render(<App />)
     expect(await screen.findByText('Draft A text')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Draft B' }))
+    fireEvent.change(screen.getByLabelText('Draft version'), { target: { value: 'draft-b' } })
     fireEvent.click(screen.getByRole('button', { name: 'Copy feedback' }))
     await act(async () => {
       await Promise.resolve()
@@ -253,7 +253,7 @@ describe('App document loading', () => {
     expect(await screen.findByText('Version 1')).toBeInTheDocument()
     expect(screen.getByText('Stored annotation should wait for selection.')).toBeInTheDocument()
     expect(screen.getAllByText('Initial copy')).toHaveLength(2)
-    expect(screen.getByText('1 annotation')).toBeInTheDocument()
+    expect(screen.getByText('1 comments')).toBeInTheDocument()
   })
 
   it('shows an alert when the document cannot be loaded', async () => {
@@ -608,7 +608,7 @@ describe('App document loading', () => {
     expect(await screen.findByText('Initial copy')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Mock selection change' }))
-    await user.click(screen.getByRole('button', { name: 'Annotate' }))
+    await user.click(screen.getByRole('button', { name: 'Comments' }))
     await user.type(screen.getByLabelText('Annotation comment'), '  Define the evidence.  ')
     await user.click(screen.getByRole('button', { name: 'Save annotation' }))
 
@@ -671,17 +671,17 @@ describe('App document loading', () => {
     expect(await screen.findByText('Initial copy')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Mock selection change' }))
-    await user.click(screen.getByRole('button', { name: 'Annotate' }))
+    await user.click(screen.getByRole('button', { name: 'Comments' }))
     await user.type(screen.getByLabelText('Annotation comment'), '1')
     await user.click(screen.getByRole('button', { name: 'Save annotation' }))
     expect(await screen.findByText('1')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Mock alternate selection change' }))
-    await user.click(screen.getByRole('button', { name: 'Annotate' }))
+    await user.click(screen.getByRole('button', { name: 'Comments' }))
     await user.type(screen.getByLabelText('Annotation comment'), '2')
     await user.click(screen.getByRole('button', { name: 'Save annotation' }))
 
-    expect(await screen.findByText('2 annotations')).toBeInTheDocument()
+    expect(await screen.findByText('2 comments')).toBeInTheDocument()
     expect(screen.getByText('1')).toBeInTheDocument()
     expect(screen.getByText('2')).toBeInTheDocument()
     expect(screen.getByText('Edited')).toBeInTheDocument()
@@ -878,14 +878,14 @@ describe('App document loading', () => {
     expect(await screen.findByText('Initial copy')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Mock selection change' }))
-    await user.click(screen.getByRole('button', { name: 'Annotate' }))
+    await user.click(screen.getByRole('button', { name: 'Comments' }))
     await user.type(screen.getByLabelText('Annotation comment'), 'Define the evidence.')
     await user.click(screen.getByRole('button', { name: 'Save annotation' }))
 
     expect(await screen.findByText('Define the evidence.')).toBeInTheDocument()
     expect(screen.queryByLabelText('Annotation comment')).not.toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: 'Annotate' }))
+    await user.click(screen.getByRole('button', { name: 'Comments' }))
     expect(screen.queryByLabelText('Annotation comment')).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Mock selection change' }))
@@ -927,7 +927,7 @@ describe('App document loading', () => {
     vi.useFakeTimers()
 
     fireEvent.click(screen.getByRole('button', { name: 'Mock selection change' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Annotate' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Comments' }))
     fireEvent.change(screen.getByLabelText('Annotation comment'), { target: { value: 'Define the cleared anchor.' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save annotation' }))
 
@@ -965,7 +965,7 @@ describe('App document loading', () => {
     expect(await screen.findByText('Initial copy')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Mock selection change' }))
-    await user.click(screen.getByRole('button', { name: 'Annotate' }))
+    await user.click(screen.getByRole('button', { name: 'Comments' }))
     await user.type(screen.getByLabelText('Annotation comment'), 'Define this.')
     await user.click(screen.getByRole('button', { name: 'Save annotation' }))
 
@@ -1007,7 +1007,7 @@ describe('App document loading', () => {
     expect(await screen.findByText('Initial copy')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Mock selection change' }))
-    await user.click(screen.getByRole('button', { name: 'Annotate' }))
+    await user.click(screen.getByRole('button', { name: 'Comments' }))
     await user.type(screen.getByLabelText('Annotation comment'), 'Retry draft.')
     await user.click(screen.getByRole('button', { name: 'Save annotation' }))
 
@@ -1040,7 +1040,7 @@ describe('App document loading', () => {
     expect(await screen.findByText('Initial copy')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Mock selection change' }))
-    await user.click(screen.getByRole('button', { name: 'Annotate' }))
+    await user.click(screen.getByRole('button', { name: 'Comments' }))
     await user.type(screen.getByLabelText('Annotation comment'), 'Pending draft.')
     await user.click(screen.getByRole('button', { name: 'Save annotation' }))
 
@@ -1081,7 +1081,7 @@ describe('App document loading', () => {
     expect(await screen.findByText('Initial copy')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Mock selection change' }))
-    await user.click(screen.getByRole('button', { name: 'Annotate' }))
+    await user.click(screen.getByRole('button', { name: 'Comments' }))
     await user.type(screen.getByLabelText('Annotation comment'), 'Malformed draft.')
     await user.click(screen.getByRole('button', { name: 'Save annotation' }))
 
@@ -1132,7 +1132,7 @@ describe('App document loading', () => {
     vi.useRealTimers()
 
     await user.click(screen.getByRole('button', { name: 'Mock selection change' }))
-    await user.click(screen.getByRole('button', { name: 'Annotate' }))
+    await user.click(screen.getByRole('button', { name: 'Comments' }))
     await user.type(screen.getByLabelText('Annotation comment'), 'Annotation after save error.')
     await user.click(screen.getByRole('button', { name: 'Save annotation' }))
 
@@ -1174,7 +1174,7 @@ describe('App document loading', () => {
     expect(await screen.findByText('Initial copy')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Mock selection change' }))
-    await user.click(screen.getByRole('button', { name: 'Annotate' }))
+    await user.click(screen.getByRole('button', { name: 'Comments' }))
     await user.type(screen.getByLabelText('Annotation comment'), 'Older failure.')
     await user.click(screen.getByRole('button', { name: 'Save annotation' }))
     expect(screen.getByRole('button', { name: 'Save annotation' })).toBeDisabled()
@@ -1237,7 +1237,7 @@ describe('App document loading', () => {
     vi.useRealTimers()
 
     await user.click(screen.getByRole('button', { name: 'Mock selection change' }))
-    await user.click(screen.getByRole('button', { name: 'Annotate' }))
+    await user.click(screen.getByRole('button', { name: 'Comments' }))
     await user.type(screen.getByLabelText('Annotation comment'), 'Preserve this annotation.')
     await user.click(screen.getByRole('button', { name: 'Save annotation' }))
     expect(await screen.findByText('Preserve this annotation.')).toBeInTheDocument()
